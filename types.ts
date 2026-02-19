@@ -13,13 +13,6 @@ export interface FileSystemNode {
   createdAt: number;
 }
 
-export interface ChatMessage {
-  id: string;
-  role: 'user' | 'model';
-  text: string;
-  timestamp: number;
-}
-
 export type Theme =
   | 'montana' | 'light' | 'nord' | 'dracula' | 'solarized' | 'forest' | 'cyberpunk'
   | 'monokai' | 'gruvbox' | 'catppuccin' | 'tokyonight' | 'rosepine' | 'kanagawa'
@@ -31,7 +24,6 @@ export interface AppSettings {
   theme: Theme;
   storageMode: StorageMode;
   showLineNumbers: boolean;
-  apiKey: string;
   // Supabase cloud sync
   supabaseUrl?: string;
   supabaseAnonKey?: string;

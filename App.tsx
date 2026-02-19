@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { FileSystemNode, NodeType, Theme, AppSettings, SyncUser } from './types';
 import { FileSystemItem } from './components/FileSystemItem';
 import { MarkdownEditor } from './components/MarkdownEditor';
-import { AIPanel } from './components/AIPanel';
+
 import { SettingsModal } from './components/SettingsModal';
 import { SearchPalette } from './components/SearchPalette';
 import { ToastContainer, ToastMessage } from './components/Toast';
@@ -12,7 +12,7 @@ import { saveVersion } from './services/versionHistory';
 import { exportAsZip } from './services/exportService';
 import * as localSync from './services/localSyncService';
 import * as supabaseSync from './services/supabaseService';
-import { Plus, Bot, Mountain, FolderInput, Settings, X, Search, RefreshCw, Download as DownloadIcon } from 'lucide-react';
+import { Plus, Mountain, FolderInput, Settings, X, Search, RefreshCw, Download as DownloadIcon } from 'lucide-react';
 
 // Helper for ID generation
 const generateId = () => crypto.randomUUID();
@@ -20,7 +20,7 @@ const generateId = () => crypto.randomUUID();
 // Initial Data
 const initialNodes: FileSystemNode[] = [
   { id: '1', parentId: null, name: 'Welcome', type: NodeType.FOLDER, isOpen: true, createdAt: Date.now() },
-  { id: '2', parentId: '1', name: 'Start Here', type: NodeType.FILE, content: '# Welcome to Montana\n\nThis is a production-ready Markdown note-taking app.\n\n## 🔮 Invisible Syntax\nNotice how the markdown syntax (like **bold** or *italic*) is hidden while you write?\n- Place your cursor inside the text to edit formatting.\n\n## ⚙️ Settings\nClick the gear icon in the sidebar to:\n- Change **Font Size**.\n- Switch **Themes**.\n- Toggle between **Local** and **Cloud** storage.\n\n## Features\n- **Syntax Highlighting**: Write with style.\n- **Gemini AI**: Click the robot icon to chat with your notes.\n- **Local Access**: Open folders from your computer.\n\nTry creating a new file!', createdAt: Date.now() },
+  { id: '2', parentId: '1', name: 'Start Here', type: NodeType.FILE, content: '# Welcome to Montana\n\nThis is a production-ready Markdown note-taking app.\n\n## 🔮 Invisible Syntax\nNotice how the markdown syntax (like **bold** or *italic*) is hidden while you write?\n- Place your cursor inside the text to edit formatting.\n\n## ⚙️ Settings\nClick the gear icon in the sidebar to:\n- Change **Font Size**.\n- Switch **Themes**.\n- Toggle between **Local** and **Cloud** storage.\n\n## Features\n- **Syntax Highlighting**: Write with style.\n- **Local Access**: Open folders from your computer.\n- **Cloud Sync**: Sync notes across devices with Supabase.\n\nTry creating a new file!', createdAt: Date.now() },
   { id: '3', parentId: null, name: 'Personal', type: NodeType.FOLDER, isOpen: false, createdAt: Date.now() },
 ];
 
@@ -29,7 +29,6 @@ const defaultSettings: AppSettings = {
   theme: 'montana',
   storageMode: 'local',
   showLineNumbers: false,
-  apiKey: ''
 };
 
 const App: React.FC = () => {
@@ -50,7 +49,7 @@ const App: React.FC = () => {
   
   // Responsive State defaults
   const [isSidebarOpen, setSidebarOpen] = useState(window.innerWidth >= 768);
-  const [isAIPanelOpen, setAIPanelOpen] = useState(false);
+
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isSearchOpen, setSearchOpen] = useState(false);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
@@ -508,35 +507,15 @@ const App: React.FC = () => {
           activeNode={activeNode}
           onUpdateContent={handleUpdateContent}
           onRenameNode={handleRenameNode}
-          onRequestAI={() => setAIPanelOpen(!isAIPanelOpen)}
           onToggleSidebar={() => setSidebarOpen(!isSidebarOpen)}
           fontSize={settings.fontSize}
-          apiKey={settings.apiKey}
           allNodes={nodes}
           onNavigateToNote={handleSelectNode}
           onOpenVersionHistory={() => setVersionHistoryOpen(true)}
           onExportZip={handleExportZip}
         />
         
-        {/* Floating AI Toggle (Only visible when panel is closed and activeNode exists) */}
-        {!isAIPanelOpen && activeNode && (
-          <button
-            onClick={() => setAIPanelOpen(true)}
-            className="absolute bottom-6 right-6 p-4 bg-obsidian-accent rounded-full shadow-lg shadow-obsidian-accent/20 text-white hover:brightness-110 active:scale-95 transition-all z-20 flex items-center justify-center"
-            title="Open AI Assistant"
-          >
-            <Bot size={24} />
-          </button>
-        )}
       </div>
-
-      {/* AI Panel */}
-      <AIPanel 
-        isVisible={isAIPanelOpen} 
-        onClose={() => setAIPanelOpen(false)}
-        activeNode={activeNode}
-        apiKey={settings.apiKey}
-      />
 
       {/* Settings Modal */}
       <SettingsModal 

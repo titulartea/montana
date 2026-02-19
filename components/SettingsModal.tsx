@@ -123,20 +123,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     </p>
                   </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-obsidian-muted mb-2">Gemini API Key</label>
-                  <input 
-                    type="password"
-                    value={settings.apiKey || ''}
-                    onChange={(e) => onUpdateSettings({...settings, apiKey: e.target.value})}
-                    placeholder="Enter your Gemini API key…"
-                    className="w-full bg-obsidian-bg border border-obsidian-border rounded-lg px-3 py-2.5 text-sm text-obsidian-text outline-none focus:border-obsidian-accent transition-colors"
-                    aria-label="Gemini API Key"
-                  />
-                  <p className="text-xs text-obsidian-muted mt-2">
-                    Get your key from <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer" className="text-obsidian-accent hover:underline">Google AI Studio</a>. Stored locally in your browser.
-                  </p>
-                </div>
+
               </div>
             )}
 

@@ -2,11 +2,10 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { FileSystemNode, NodeType } from '../types';
 import { 
-  Eye, EyeOff, Save, Sparkles, Download, Menu, 
+  Eye, EyeOff, Save, Download, Menu, 
   Bold, Italic, List, CheckSquare, Link as LinkIcon, Heading, Quote, Strikethrough,
-  Clock, FileDown, FileArchive, Image as ImageIcon
+  Clock, FileDown, FileArchive, Image as ImageIcon, FileText
 } from 'lucide-react';
-import { suggestTitle } from '../services/geminiService';
 import { exportAsHTML } from '../services/exportService';
 
 // Import Editor and Prism for highlighting
@@ -31,10 +30,8 @@ interface MarkdownEditorProps {
   activeNode: FileSystemNode | undefined;
   onUpdateContent: (id: string, content: string) => void;
   onRenameNode: (id: string, name: string) => void;
-  onRequestAI: () => void;
   onToggleSidebar: () => void;
   fontSize: number;
-  apiKey: string;
   allNodes: FileSystemNode[];
   onNavigateToNote: (noteId: string) => void;
   onOpenVersionHistory: () => void;
@@ -45,10 +42,8 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
   activeNode, 
   onUpdateContent,
   onRenameNode,
-  onRequestAI,
   onToggleSidebar,
   fontSize,
-  apiKey,
   allNodes,
   onNavigateToNote,
   onOpenVersionHistory,
@@ -137,18 +132,12 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
         <button onClick={onToggleSidebar} className="md:hidden absolute top-4 left-4 p-2 text-obsidian-text">
             <Menu />
         </button>
-        <Sparkles size={48} className="mb-4 opacity-20" />
+        <FileText size={48} className="mb-4 opacity-20" />
         <p className="text-lg font-medium">No File Selected</p>
         <p className="text-sm opacity-60 mt-2">Open the sidebar to select or create a note.</p>
       </div>
     );
   }
-
-  const handleMagicTitle = async () => {
-    if (!activeNode.content) return;
-    const newTitle = await suggestTitle(activeNode.content, apiKey);
-    onRenameNode(activeNode.id, newTitle);
-  };
 
   const handleDownload = () => {
     if (!activeNode.content) return;
@@ -323,13 +312,6 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
             title="Export All as ZIP"
           >
             <FileArchive size={18} />
-          </button>
-          <button 
-            onClick={handleMagicTitle}
-            className="p-2 hover:bg-obsidian-hover rounded-lg text-obsidian-muted hover:text-yellow-400 transition-colors"
-            title="AI Title"
-          >
-            <Sparkles size={18} />
           </button>
           <button 
             onClick={() => setIsPreview(!isPreview)}
