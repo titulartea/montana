@@ -47,6 +47,8 @@ const App: React.FC = () => {
   const decryptedNotesRef = useRef<Map<string, string>>(new Map());
   const decryptedNotePasswordsRef = useRef<Map<string, string>>(new Map());
   const encryptedContentVersionRef = useRef<Map<string, number>>(new Map());
+  const cloudHydratedRef = useRef(false);
+  const cloudHydrationKeyRef = useRef<string | null>(null);
   const [encryptionUiVersion, setEncryptionUiVersion] = useState(0);
   const isCloudMutatingRef = useRef(false);
   const cloudMutationUnlockTimerRef = useRef<number | null>(null);
@@ -128,6 +130,39 @@ const App: React.FC = () => {
       }, 1200);
     }
   }, []);
+
+  useEffect(() => {
+    if (settings.storageMode !== 'cloud' || !settings.supabaseUrl || !settings.supabaseAnonKey || !syncUser) {
+      cloudHydratedRef.current = false;
+      cloudHydrationKeyRef.current = null;
+      return;
+    }
+
+    const key = `${syncUser.id}|${settings.supabaseUrl}|${settings.supabaseAnonKey}`;
+    if (cloudHydrationKeyRef.current === key && cloudHydratedRef.current) return;
+
+    cloudHydrationKeyRef.current = key;
+    withCloudMutationGuard(async () => {
+      const cloudNodes = await supabaseSync.pullAll(settings.supabaseUrl!, settings.supabaseAnonKey!);
+      setNodes(cloudNodes);
+
+      const firstFile = cloudNodes.find(n => n.type === NodeType.FILE);
+      if (firstFile) {
+        setActiveNodeId(firstFile.id);
+        setOpenTabs([firstFile.id]);
+      } else {
+        setActiveNodeId(null);
+        setOpenTabs([]);
+      }
+
+      cloudHydratedRef.current = true;
+      addToast('success', `클라우드 노트 ${cloudNodes.length}개를 불러왔습니다.`);
+    }).catch(() => {
+      cloudHydrationKeyRef.current = null;
+      cloudHydratedRef.current = false;
+      addToast('error', '클라우드 노트 자동 불러오기에 실패했습니다.');
+    });
+  }, [settings.storageMode, settings.supabaseUrl, settings.supabaseAnonKey, syncUser, withCloudMutationGuard, addToast]);
 
   // Keyboard shortcut
   useEffect(() => {
@@ -349,6 +384,8 @@ const App: React.FC = () => {
   const handleCloudSignOut = useCallback(async () => {
     if (!settings.supabaseUrl || !settings.supabaseAnonKey) return;
     await supabaseSync.signOut(settings.supabaseUrl, settings.supabaseAnonKey);
+    cloudHydratedRef.current = false;
+    cloudHydrationKeyRef.current = null;
     supabaseSync.resetClient(); setSyncUser(null); addToast('info', '로그아웃됨');
   }, [settings.supabaseUrl, settings.supabaseAnonKey, addToast]);
   const handleCloudPush = useCallback(async () => {
@@ -370,6 +407,7 @@ const App: React.FC = () => {
         setNodes(cn);
         setOpenTabs([]);
         setActiveNodeId(null);
+        cloudHydratedRef.current = true;
         addToast('success', 'Pull 완료 (' + cn.length + '개)');
       });
     } catch (e: any) {
@@ -380,6 +418,7 @@ const App: React.FC = () => {
   // Auto-push
   useEffect(() => {
     if (settings.storageMode !== 'cloud' || !settings.supabaseUrl || !settings.supabaseAnonKey || !syncUser) return;
+    if (!cloudHydratedRef.current) return;
     if (isCloudMutatingRef.current) return;
     const t = setTimeout(() => {
       withCloudMutationGuard(async () => {
