@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
-import rehypeRaw from 'rehype-raw';
 import { FileSystemNode, NodeType } from '../types';
 import { 
   Eye, EyeOff, Save, Sparkles, Download, Menu, 
@@ -199,12 +198,31 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
     }
   }, [activeNode, onUpdateContent]);
 
-  // Wikilink + highlight click handler for preview mode
+  // Process inline ==highlight== in React children (for preview)
+  const processHighlights = useCallback((children: React.ReactNode): React.ReactNode => {
+    return React.Children.map(children, (child) => {
+      if (typeof child !== 'string') {
+        // If it's a React element with children, recurse
+        if (React.isValidElement(child) && (child.props as any)?.children) {
+          return React.cloneElement(child as React.ReactElement<any>, {}, processHighlights((child.props as any).children));
+        }
+        return child;
+      }
+      if (!child.includes('==')) return child;
+      const parts = child.split(/(==[^=]+==)/);
+      if (parts.length === 1) return child;
+      return parts.map((part: string, i: number) => {
+        const m = part.match(/^==([^=]+)==$/);
+        if (m) return <mark key={i}>{m[1]}</mark>;
+        return part;
+      });
+    });
+  }, []);
+
+  // Wikilink click handler for preview mode
   const renderWikilinks = useCallback((content: string) => {
-    // Replace ==highlight== with <mark> tags
-    let processed = content.replace(/==([^=]+)==/g, '<mark>$1</mark>');
     // Replace [[note name]] with clickable links
-    processed = processed.replace(/\[\[([^\]]+)\]\]/g, (match, noteName) => {
+    let processed = content.replace(/\[\[([^\]]+)\]\]/g, (match, noteName) => {
       const fileNodes = allNodes.filter(n => n.type === NodeType.FILE);
       const target = fileNodes.find(n => n.name.toLowerCase() === noteName.trim().toLowerCase());
       if (target) {
@@ -213,7 +231,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
       return `[${noteName}](#wikilink:missing)`;
     });
     return processed;
-  }, [allNodes]);
+  }, [allNodes]);  // eslint-disable-line react-hooks/exhaustive-deps
 
   const applyMarkdown = (prefix: string, suffix: string = '') => {
     if (!activeNode.content && activeNode.content !== '') return;
@@ -340,7 +358,16 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
             }}
           >
             <ReactMarkdown
-              rehypePlugins={[rehypeRaw]}
+              components={{
+                p: ({children, ...props}: any) => <p {...props}>{processHighlights(children)}</p>,
+                li: ({children, ...props}: any) => <li {...props}>{processHighlights(children)}</li>,
+                td: ({children, ...props}: any) => <td {...props}>{processHighlights(children)}</td>,
+                h1: ({children, ...props}: any) => <h1 {...props}>{processHighlights(children)}</h1>,
+                h2: ({children, ...props}: any) => <h2 {...props}>{processHighlights(children)}</h2>,
+                h3: ({children, ...props}: any) => <h3 {...props}>{processHighlights(children)}</h3>,
+                h4: ({children, ...props}: any) => <h4 {...props}>{processHighlights(children)}</h4>,
+                blockquote: ({children, ...props}: any) => <blockquote {...props}>{processHighlights(children)}</blockquote>,
+              }}
             >{renderWikilinks(activeNode.content || '')}</ReactMarkdown>
           </div>
         ) : (
