@@ -23,6 +23,9 @@ const initialNodes: FileSystemNode[] = [
   { id: '3', parentId: null, name: 'Personal', type: NodeType.FOLDER, isOpen: false, createdAt: Date.now() },
 ];
 
+const envSupabaseUrl = (import.meta as any).env?.VITE_SUPABASE_URL?.trim?.() || '';
+const envSupabaseAnonKey = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY?.trim?.() || '';
+
 const defaultSettings: AppSettings = { fontSize: 16, theme: 'system', storageMode: 'local', showLineNumbers: false, sortOrder: 'folders-first' };
 const validThemes = new Set(['light', 'dark', 'system', 'dracula', 'one-dark', 'nord', 'solarized-dark', 'github-dark', 'tokyo-night', 'sepia', 'mint']);
 
@@ -31,8 +34,9 @@ const App: React.FC = () => {
   const [activeNodeId, setActiveNodeId] = useState<string | null>(null);
   const [settings, setSettings] = useState<AppSettings>(() => {
     const s = localStorage.getItem('montana-settings');
-    if (!s) return defaultSettings;
-    const parsed = { ...defaultSettings, ...JSON.parse(s) };
+    const parsed = s ? { ...defaultSettings, ...JSON.parse(s) } : { ...defaultSettings };
+    if (!parsed.supabaseUrl && envSupabaseUrl) parsed.supabaseUrl = envSupabaseUrl;
+    if (!parsed.supabaseAnonKey && envSupabaseAnonKey) parsed.supabaseAnonKey = envSupabaseAnonKey;
     if (!validThemes.has(parsed.theme)) parsed.theme = 'system';
     return parsed;
   });
