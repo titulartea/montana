@@ -1,4 +1,4 @@
 {
-  "supabaseUrl": "",
-  "supabaseAnonKey": ""
+  "supabaseUrl": "https://boeehugivplopntosgfo.supabase.co",
+  "supabaseAnonKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJvZWVodWdpdnBsb3BudG9zZ2ZvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE0NzI0MTUsImV4cCI6MjA4NzA0ODQxNX0.sRhxhSYArPoSeUCdzu0Qxx66yp3J-KMHNWBcSznI8jo"
 }
