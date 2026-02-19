@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
+import rehypeRaw from 'rehype-raw';
 import { FileSystemNode, NodeType } from '../types';
 import { 
   Eye, EyeOff, Save, Sparkles, Download, Menu, 
@@ -13,6 +14,19 @@ import { exportAsHTML } from '../services/exportService';
 import Editor from 'react-simple-code-editor';
 import Prism from 'prismjs';
 import 'prismjs/components/prism-markdown.js';
+
+// Extend Prism markdown grammar with ==highlight== support
+if (Prism.languages.markdown) {
+  Prism.languages.insertBefore('markdown', 'bold', {
+    'highlight-marker': {
+      pattern: /==(?!\s)[^=]*?(?!\s)==/,
+      inside: {
+        content: /[^=]+/,
+        punctuation: /==/,
+      },
+    },
+  });
+}
 
 interface MarkdownEditorProps {
   activeNode: FileSystemNode | undefined;
@@ -94,7 +108,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
       const isCursorInside = (cursorOffset >= start && cursorOffset <= end);
       
       // 4. Define formatting blocks that we care about hiding/showing
-      const formattingTypes = ['bold', 'italic', 'strike', 'url', 'blockquote', 'title', 'code-snippet', 'list'];
+      const formattingTypes = ['bold', 'italic', 'strike', 'url', 'blockquote', 'title', 'code-snippet', 'list', 'highlight-marker'];
       const isFormattingBlock = formattingTypes.includes(type);
 
       // 5. Determine if we should reveal syntax
@@ -185,10 +199,12 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
     }
   }, [activeNode, onUpdateContent]);
 
-  // Wikilink click handler for preview mode
+  // Wikilink + highlight click handler for preview mode
   const renderWikilinks = useCallback((content: string) => {
+    // Replace ==highlight== with <mark> tags
+    let processed = content.replace(/==([^=]+)==/g, '<mark>$1</mark>');
     // Replace [[note name]] with clickable links
-    return content.replace(/\[\[([^\]]+)\]\]/g, (match, noteName) => {
+    processed = processed.replace(/\[\[([^\]]+)\]\]/g, (match, noteName) => {
       const fileNodes = allNodes.filter(n => n.type === NodeType.FILE);
       const target = fileNodes.find(n => n.name.toLowerCase() === noteName.trim().toLowerCase());
       if (target) {
@@ -196,6 +212,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
       }
       return `[${noteName}](#wikilink:missing)`;
     });
+    return processed;
   }, [allNodes]);
 
   const applyMarkdown = (prefix: string, suffix: string = '') => {
@@ -229,6 +246,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
         case 'i': e.preventDefault(); applyMarkdown('*', '*'); break;
         case 'k': e.preventDefault(); applyMarkdown('[', '](url)'); break;
         case 'x': if (e.shiftKey) { e.preventDefault(); applyMarkdown('~~', '~~'); } break;
+        case 'h': if (e.shiftKey) { e.preventDefault(); applyMarkdown('==', '=='); } break;
       }
     }
   };
@@ -321,7 +339,9 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
               }
             }}
           >
-            <ReactMarkdown>{renderWikilinks(activeNode.content || '')}</ReactMarkdown>
+            <ReactMarkdown
+              rehypePlugins={[rehypeRaw]}
+            >{renderWikilinks(activeNode.content || '')}</ReactMarkdown>
           </div>
         ) : (
           <>
@@ -330,6 +350,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
                <FormatButton icon={<Bold size={14}/>} onClick={() => applyMarkdown('**', '**')} tooltip="Bold (Ctrl+B)" />
                <FormatButton icon={<Italic size={14}/>} onClick={() => applyMarkdown('*', '*')} tooltip="Italic (Ctrl+I)" />
                <FormatButton icon={<Strikethrough size={14}/>} onClick={() => applyMarkdown('~~', '~~')} tooltip="Strikethrough" />
+               <FormatButton icon={<span className="text-xs font-bold" style={{background:'rgba(250,204,21,0.3)',padding:'0 3px',borderRadius:2}}>H</span>} onClick={() => applyMarkdown('==', '==')} tooltip="Highlight" />
                <div className="w-px h-4 bg-obsidian-border mx-1" />
                <FormatButton icon={<Heading size={14}/>} onClick={() => applyMarkdown('### ')} tooltip="Heading" />
                <FormatButton icon={<Quote size={14}/>} onClick={() => applyMarkdown('> ')} tooltip="Quote" />

@@ -12,7 +12,7 @@ import { saveVersion } from './services/versionHistory';
 import { exportAsZip } from './services/exportService';
 import * as localSync from './services/localSyncService';
 import * as supabaseSync from './services/supabaseService';
-import { Plus, Bot, Mountain, FolderInput, Settings, X, Search, RefreshCw } from 'lucide-react';
+import { Plus, Bot, Mountain, FolderInput, Settings, X, Search, RefreshCw, Download as DownloadIcon } from 'lucide-react';
 
 // Helper for ID generation
 const generateId = () => crypto.randomUUID();
@@ -66,6 +66,7 @@ const App: React.FC = () => {
   /** IDs of nodes that came from a synced local folder */
   const localSyncNodeIds = useRef<Set<string>>(new Set());
   const [importProgress, setImportProgress] = useState<{ scanned: number; currentPath: string } | null>(null);
+  const [deferredInstallPrompt, setDeferredInstallPrompt] = useState<any>(null);
 
   // Handle Resize
   useEffect(() => {
@@ -115,6 +116,13 @@ const App: React.FC = () => {
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/sw.js').catch(() => {});
     }
+    // Capture PWA install prompt
+    const handler = (e: Event) => {
+      e.preventDefault();
+      setDeferredInstallPrompt(e);
+    };
+    window.addEventListener('beforeinstallprompt', handler);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
   }, []);
 
   // Restore Supabase session on mount
@@ -465,6 +473,23 @@ const App: React.FC = () => {
           >
             <Settings size={16} /> Settings
           </button>
+
+          {/* PWA Install Button */}
+          {deferredInstallPrompt && (
+            <button
+              onClick={async () => {
+                deferredInstallPrompt.prompt();
+                const result = await deferredInstallPrompt.userChoice;
+                if (result.outcome === 'accepted') {
+                  setDeferredInstallPrompt(null);
+                  addToast('success', '앱이 설치되었습니다!');
+                }
+              }}
+              className="w-full text-left px-3 py-2.5 text-sm text-obsidian-accent hover:text-obsidian-text flex items-center gap-3 hover:bg-obsidian-hover rounded-lg transition-colors font-medium"
+            >
+              <DownloadIcon size={16} /> 앱 다운로드
+            </button>
+          )}
         </div>
       </div>
 

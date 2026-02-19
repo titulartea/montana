@@ -410,3 +410,33 @@ body {
   outline-offset: -2px;
   background: rgba(124, 58, 237, 0.1);
 }
+
+/* ==highlight== marker style in editor */
+.token.highlight-marker {
+  background: rgba(250, 204, 21, 0.25);
+  color: var(--text-main) !important;
+  border-radius: 2px;
+  padding: 0 1px;
+}
+.token.highlight-marker .token.punctuation {
+  color: transparent !important;
+  font-size: 1px !important;
+  letter-spacing: -1ch;
+  width: 1px;
+  overflow: hidden;
+}
+.syntax-visible.token.highlight-marker .token.punctuation,
+.token.highlight-marker.syntax-visible .token.punctuation {
+  color: var(--text-muted) !important;
+  font-size: inherit !important;
+  letter-spacing: normal !important;
+  width: auto !important;
+}
+
+/* ==highlight== in preview */
+.prose mark {
+  background: rgba(250, 204, 21, 0.3);
+  color: inherit;
+  padding: 0 2px;
+  border-radius: 2px;
+}

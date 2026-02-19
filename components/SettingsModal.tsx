@@ -39,6 +39,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [authError, setAuthError] = React.useState<string | null>(null);
   const [authLoading, setAuthLoading] = React.useState(false);
   const [authMode, setAuthMode] = React.useState<'login' | 'signup'>('login');
+  const [showSupabaseConfig, setShowSupabaseConfig] = React.useState(false);
 
   if (!isOpen) return null;
 
@@ -238,30 +239,56 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   <div className="space-y-4">
                     <h3 className="text-sm font-semibold text-obsidian-text uppercase tracking-wide">Supabase 설정</h3>
                     
-                    <div>
-                      <label className="block text-xs font-medium text-obsidian-muted mb-1">Project URL</label>
-                      <input 
-                        type="url"
-                        value={settings.supabaseUrl || ''}
-                        onChange={(e) => onUpdateSettings({...settings, supabaseUrl: e.target.value})}
-                        placeholder="https://xxxxx.supabase.co"
-                        className="w-full bg-obsidian-bg border border-obsidian-border rounded-lg px-3 py-2 text-sm text-obsidian-text outline-none focus:border-obsidian-accent transition-colors"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-obsidian-muted mb-1">Anon Key</label>
-                      <input 
-                        type="password"
-                        value={settings.supabaseAnonKey || ''}
-                        onChange={(e) => onUpdateSettings({...settings, supabaseAnonKey: e.target.value})}
-                        placeholder="eyJhbGciOiJIUzI1NiIs…"
-                        className="w-full bg-obsidian-bg border border-obsidian-border rounded-lg px-3 py-2 text-sm text-obsidian-text outline-none focus:border-obsidian-accent transition-colors"
-                      />
-                    </div>
-                    <p className="text-xs text-obsidian-muted">
-                      <a href="https://supabase.com/dashboard" target="_blank" rel="noopener noreferrer" className="text-obsidian-accent hover:underline">Supabase Dashboard</a>
-                      {' → Project Settings → API에서 확인할 수 있습니다.'}
-                    </p>
+                    {/* If URL/key are already saved, show compact status instead of inputs */}
+                    {hasSupabaseConfig && !showSupabaseConfig ? (
+                      <div className="p-3 border border-green-600/30 bg-green-900/10 rounded-lg flex items-center justify-between">
+                        <div>
+                          <p className="text-xs text-green-400 font-medium">✓ Supabase 연결 설정 완료</p>
+                          <p className="text-xs text-obsidian-muted mt-0.5 truncate max-w-[260px]">{settings.supabaseUrl}</p>
+                        </div>
+                        <button
+                          onClick={() => setShowSupabaseConfig(true)}
+                          className="text-xs text-obsidian-muted hover:text-obsidian-text px-2 py-1 hover:bg-obsidian-hover rounded transition-colors"
+                        >
+                          변경
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <div>
+                          <label className="block text-xs font-medium text-obsidian-muted mb-1">Project URL</label>
+                          <input 
+                            type="url"
+                            value={settings.supabaseUrl || ''}
+                            onChange={(e) => onUpdateSettings({...settings, supabaseUrl: e.target.value})}
+                            placeholder="https://xxxxx.supabase.co"
+                            className="w-full bg-obsidian-bg border border-obsidian-border rounded-lg px-3 py-2 text-sm text-obsidian-text outline-none focus:border-obsidian-accent transition-colors"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-obsidian-muted mb-1">Anon Key</label>
+                          <input 
+                            type="password"
+                            value={settings.supabaseAnonKey || ''}
+                            onChange={(e) => onUpdateSettings({...settings, supabaseAnonKey: e.target.value})}
+                            placeholder="eyJhbGciOiJIUzI1NiIs…"
+                            className="w-full bg-obsidian-bg border border-obsidian-border rounded-lg px-3 py-2 text-sm text-obsidian-text outline-none focus:border-obsidian-accent transition-colors"
+                          />
+                        </div>
+                        <p className="text-xs text-obsidian-muted">
+                          <a href="https://supabase.com/dashboard" target="_blank" rel="noopener noreferrer" className="text-obsidian-accent hover:underline">Supabase Dashboard</a>
+                          {' → Project Settings → API에서 확인할 수 있습니다.'}
+                        </p>
+                        {hasSupabaseConfig && (
+                          <button
+                            onClick={() => setShowSupabaseConfig(false)}
+                            className="text-xs text-obsidian-accent hover:underline"
+                          >
+                            설정 접기
+                          </button>
+                        )}
+                      </>
+                    )}
 
                     {/* Auth UI */}
                     {hasSupabaseConfig && (
