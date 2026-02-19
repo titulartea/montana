@@ -1,11 +1,11 @@
 {
   "name": "Montana",
   "short_name": "Montana",
-  "description": "A production-ready Markdown note-taking app with live-preview, AI, and rich themes.",
+  "description": "A lightweight Markdown note app with encrypted notes, sync, and multiple themes.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#1e1e1e",
-  "theme_color": "#7c3aed",
+  "background_color": "#ffffff",
+  "theme_color": "#0a84ff",
   "orientation": "any",
   "icons": [
     {

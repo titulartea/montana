@@ -4,7 +4,7 @@ import { FileSystemNode, NodeType } from '../types';
 import {
   Eye, EyeOff, Download, Menu,
   Bold, Italic, List, CheckSquare, Link as LinkIcon, Heading, Quote, Strikethrough,
-  Clock, FileDown, FileArchive, FileText
+  Clock, FileDown, FileArchive, FileText, Lock, Unlock
 } from 'lucide-react';
 import { exportAsHTML } from '../services/exportService';
 import Editor from 'react-simple-code-editor';
@@ -30,11 +30,17 @@ interface MarkdownEditorProps {
   onNavigateToNote: (noteId: string) => void;
   onOpenVersionHistory: () => void;
   onExportZip: () => void;
+  isEncrypted: boolean;
+  isUnlocked: boolean;
+  onEncryptNote: (password: string) => Promise<void>;
+  onUnlockNote: (password: string) => Promise<void>;
+  onLockNote: () => Promise<void>;
 }
 
 export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
   activeNode, onUpdateContent, onRenameNode, onToggleSidebar, fontSize,
   allNodes, onNavigateToNote, onOpenVersionHistory, onExportZip,
+  isEncrypted, isUnlocked, onEncryptNote, onUnlockNote, onLockNote,
 }) => {
   const [isPreview, setIsPreview] = useState(false);
   const [cursorOffset, setCursorOffset] = useState(0);
@@ -137,6 +143,48 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
     );
   }
 
+  const requestEncrypt = async () => {
+    const password = window.prompt('노트 암호화 비밀번호를 설정하세요.');
+    if (!password) return;
+    await onEncryptNote(password);
+  };
+
+  const requestUnlock = async () => {
+    const password = window.prompt('비밀번호를 입력해 노트를 잠금 해제하세요.');
+    if (!password) return;
+    await onUnlockNote(password);
+  };
+
+  if (isEncrypted && !isUnlocked) {
+    return (
+      <div className="flex-1 flex flex-col h-full overflow-hidden relative" style={{ background: 'var(--bg-main)' }}>
+        <div className="h-11 border-b flex items-center px-3 justify-between shrink-0 gap-2" style={{ borderColor: 'var(--border-color)', background: 'var(--vibrancy)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)' }}>
+          <button onClick={onToggleSidebar} className="md:hidden p-1.5 -ml-1 rounded-lg hover:bg-[var(--bg-hover)]" style={{ color: 'var(--text-muted)' }}><Menu size={18} /></button>
+          <input
+            type="text" value={activeNode.name}
+            onChange={e => onRenameNode(activeNode.id, e.target.value)}
+            className="bg-transparent text-sm font-semibold outline-none flex-1 min-w-0 truncate"
+            style={{ color: 'var(--text-main)', fontFamily: 'inherit' }}
+            placeholder="제목 없음"
+          />
+          <button onClick={requestUnlock} title="잠금 해제" className="p-1.5 rounded-lg hover:bg-[var(--bg-hover)] transition-colors" style={{ color: 'var(--bg-accent)' }}>
+            <Unlock size={15} />
+          </button>
+        </div>
+        <div className="flex-1 flex items-center justify-center p-8">
+          <div className="max-w-sm w-full rounded-2xl border p-6 text-center" style={{ borderColor: 'var(--border-color)', background: 'var(--bg-sidebar)', boxShadow: 'var(--shadow-subtle)' }}>
+            <Lock size={28} className="mx-auto mb-3" style={{ color: 'var(--bg-accent)' }} />
+            <h3 className="text-base font-semibold mb-1" style={{ color: 'var(--text-main)' }}>암호화된 노트</h3>
+            <p className="text-sm mb-4" style={{ color: 'var(--text-muted)' }}>이 노트는 암호화되어 있습니다. 비밀번호를 입력해 열어주세요.</p>
+            <button onClick={requestUnlock} className="w-full py-2.5 rounded-xl text-sm font-medium text-white" style={{ background: 'var(--bg-accent)' }}>
+              잠금 해제
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden relative" style={{ background: 'var(--bg-main)' }}>
       {/* Toolbar */}
@@ -156,6 +204,9 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
             { icon: <FileDown size={15}/>, fn: () => exportAsHTML(activeNode), tip: 'HTML 내보내기', hide: 'sm' },
             { icon: <FileArchive size={15}/>, fn: onExportZip, tip: 'ZIP 내보내기', hide: 'sm' },
             { icon: isPreview ? <EyeOff size={15}/> : <Eye size={15}/>, fn: () => setIsPreview(!isPreview), tip: isPreview ? '편집' : '미리보기' },
+            isEncrypted
+              ? { icon: <Lock size={15}/>, fn: onLockNote, tip: '다시 잠금' }
+              : { icon: <Unlock size={15}/>, fn: requestEncrypt, tip: '노트 암호화' },
           ].map((b, i) => (
             <button key={i} onClick={b.fn} title={b.tip} className={`p-1.5 rounded-lg hover:bg-[var(--bg-hover)] transition-colors ${b.hide ? `hidden ${b.hide}:block` : ''}`} style={{ color: 'var(--text-muted)' }}>{b.icon}</button>
           ))}
@@ -201,7 +252,7 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
               )}
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4 md:p-8 custom-editor-wrapper pb-20" onClick={() => document.querySelector('textarea')?.focus()}>
+            <div className="flex-1 overflow-y-auto p-4 md:p-8 custom-editor-wrapper pb-20 prose prose-slate dark:prose-invert max-w-none" onClick={() => document.querySelector('textarea')?.focus()}>
               <div onKeyDown={handleKeyDown} onPaste={handlePaste} className="h-full">
                 <Editor
                   value={activeNode.content || ''}

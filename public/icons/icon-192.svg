@@ -1,1 +1,11 @@
-<svg xmlns='http://www.w3.org/2000/svg' width='512' height='512' viewBox='0 0 512 512'><rect width='512' height='512' rx='64' fill='%237c3aed'/><text x='256' y='340' text-anchor='middle' font-size='280' font-weight='bold' fill='white' font-family='Arial'>M</text></svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" fill="none">
+	<defs>
+		<linearGradient id="g192" x1="70" y1="46" x2="430" y2="470" gradientUnits="userSpaceOnUse">
+			<stop stop-color="#60A5FA" />
+			<stop offset="1" stop-color="#0A84FF" />
+		</linearGradient>
+	</defs>
+	<rect width="512" height="512" rx="112" fill="#0F172A"/>
+	<path d="M92 350L178 218L230 286L300 168L420 350H92Z" fill="url(#g192)"/>
+	<path d="M168 376L232 272L274 328L322 252L392 376H168Z" fill="#E2E8F0" fill-opacity="0.9"/>
+</svg>

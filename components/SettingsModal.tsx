@@ -1,5 +1,5 @@
 ﻿import React from 'react';
-import { X, Cloud, Monitor, LogIn, LogOut, Upload, Download, HardDrive, Unplug, Loader2, Sun, Moon, Laptop, Stars, Leaf, BookOpen } from 'lucide-react';
+import { X, Cloud, Monitor, LogIn, LogOut, Upload, Download, HardDrive, Unplug, Loader2, Sun, Moon, Laptop, Leaf, BookOpen, Sparkles, CloudMoon, Palette, GitBranch } from 'lucide-react';
 import { AppSettings, Theme, SyncUser } from '../types';
 
 interface SettingsModalProps {
@@ -64,7 +64,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <ThemeBtn icon={<Sun size={18}/>} label="라이트" active={settings.theme === 'light'} onClick={() => set({ theme: 'light' })} />
               <ThemeBtn icon={<Moon size={18}/>} label="다크" active={settings.theme === 'dark'} onClick={() => set({ theme: 'dark' })} />
               <ThemeBtn icon={<Laptop size={18}/>} label="시스템" active={settings.theme === 'system'} onClick={() => set({ theme: 'system' })} />
-              <ThemeBtn icon={<Stars size={18}/>} label="미드나잇" active={settings.theme === 'midnight'} onClick={() => set({ theme: 'midnight' })} />
+              <ThemeBtn icon={<Sparkles size={18}/>} label="드라큘라" active={settings.theme === 'dracula'} onClick={() => set({ theme: 'dracula' })} />
+              <ThemeBtn icon={<Palette size={18}/>} label="원다크" active={settings.theme === 'one-dark'} onClick={() => set({ theme: 'one-dark' })} />
+              <ThemeBtn icon={<CloudMoon size={18}/>} label="노드" active={settings.theme === 'nord'} onClick={() => set({ theme: 'nord' })} />
+              <ThemeBtn icon={<Moon size={18}/>} label="솔라다크" active={settings.theme === 'solarized-dark'} onClick={() => set({ theme: 'solarized-dark' })} />
+              <ThemeBtn icon={<GitBranch size={18}/>} label="깃허브다크" active={settings.theme === 'github-dark'} onClick={() => set({ theme: 'github-dark' })} />
+              <ThemeBtn icon={<Moon size={18}/>} label="도쿄나이트" active={settings.theme === 'tokyo-night'} onClick={() => set({ theme: 'tokyo-night' })} />
               <ThemeBtn icon={<BookOpen size={18}/>} label="세피아" active={settings.theme === 'sepia'} onClick={() => set({ theme: 'sepia' })} />
               <ThemeBtn icon={<Leaf size={18}/>} label="민트" active={settings.theme === 'mint'} onClick={() => set({ theme: 'mint' })} />
             </div>

@@ -13,7 +13,18 @@ export interface FileSystemNode {
   createdAt: number;
 }
 
-export type Theme = 'light' | 'dark' | 'system' | 'midnight' | 'sepia' | 'mint';
+export type Theme =
+  | 'light'
+  | 'dark'
+  | 'system'
+  | 'dracula'
+  | 'one-dark'
+  | 'nord'
+  | 'solarized-dark'
+  | 'github-dark'
+  | 'tokyo-night'
+  | 'sepia'
+  | 'mint';
 export type StorageMode = 'local' | 'cloud';
 
 export interface AppSettings {

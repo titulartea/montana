@@ -11,6 +11,7 @@ import { saveVersion } from './services/versionHistory';
 import { exportAsZip } from './services/exportService';
 import * as localSync from './services/localSyncService';
 import * as supabaseSync from './services/supabaseService';
+import { decryptNoteContent, encryptNoteContent, isEncryptedContent } from './services/encryptionService';
 import { Plus, Mountain, FolderInput, Settings, X, Search, RefreshCw, Download as DownloadIcon } from 'lucide-react';
 
 const generateId = () => crypto.randomUUID();
@@ -22,7 +23,7 @@ const initialNodes: FileSystemNode[] = [
 ];
 
 const defaultSettings: AppSettings = { fontSize: 16, theme: 'system', storageMode: 'local', showLineNumbers: false };
-const validThemes = new Set(['light', 'dark', 'system', 'midnight', 'sepia', 'mint']);
+const validThemes = new Set(['light', 'dark', 'system', 'dracula', 'one-dark', 'nord', 'solarized-dark', 'github-dark', 'tokyo-night', 'sepia', 'mint']);
 
 const App: React.FC = () => {
   const [nodes, setNodes] = useState<FileSystemNode[]>(() => { const s = localStorage.getItem('montana-nodes'); return s ? JSON.parse(s) : initialNodes; });
@@ -43,6 +44,10 @@ const App: React.FC = () => {
   const [syncUser, setSyncUser] = useState<SyncUser | null>(null);
   const [localSyncFolder, setLocalSyncFolder] = useState<string | null>(localSync.syncedFolderName());
   const localSyncNodeIds = useRef<Set<string>>(new Set());
+  const decryptedNotesRef = useRef<Map<string, string>>(new Map());
+  const decryptedNotePasswordsRef = useRef<Map<string, string>>(new Map());
+  const encryptedContentVersionRef = useRef<Map<string, number>>(new Map());
+  const [encryptionUiVersion, setEncryptionUiVersion] = useState(0);
   const isCloudMutatingRef = useRef(false);
   const cloudMutationUnlockTimerRef = useRef<number | null>(null);
   const [importProgress, setImportProgress] = useState<{ scanned: number; currentPath: string } | null>(null);
@@ -65,9 +70,21 @@ const App: React.FC = () => {
     if (!activeNodeId) return;
     const node = nodes.find(n => n.id === activeNodeId);
     if (!node || node.type !== NodeType.FILE || !node.content) return;
+    if (isEncryptedContent(node.content)) return;
     const t = setTimeout(() => saveVersion(node.id, node.name, node.content || ''), 5000);
     return () => clearTimeout(t);
   }, [nodes, activeNodeId]);
+
+  useEffect(() => {
+    const nodeIds = new Set(nodes.map(n => n.id));
+    Array.from(decryptedNotesRef.current.keys()).forEach((id) => {
+      if (!nodeIds.has(id)) {
+        decryptedNotesRef.current.delete(id);
+        decryptedNotePasswordsRef.current.delete(id);
+        encryptedContentVersionRef.current.delete(id);
+      }
+    });
+  }, [nodes]);
 
   // PWA
   useEffect(() => {
@@ -119,6 +136,14 @@ const App: React.FC = () => {
   }, []);
 
   const activeNode = useMemo(() => nodes.find(n => n.id === activeNodeId), [nodes, activeNodeId]);
+  const activeNodeForEditor = useMemo(() => {
+    if (!activeNode) return undefined;
+    if (!isEncryptedContent(activeNode.content)) return activeNode;
+    const decrypted = decryptedNotesRef.current.get(activeNode.id);
+    return { ...activeNode, content: decrypted ?? '' };
+  }, [activeNode, encryptionUiVersion]);
+  const activeNodeIsEncrypted = !!activeNode && isEncryptedContent(activeNode.content);
+  const activeNodeIsUnlocked = !!activeNode && decryptedNotesRef.current.has(activeNode.id);
   const rootNodes = useMemo(() => nodes.filter(n => n.parentId === null).sort((a, b) => a.type === NodeType.FOLDER ? -1 : 1), [nodes]);
 
   const addToast = useCallback((type: ToastMessage['type'], text: string) => {
@@ -150,17 +175,108 @@ const App: React.FC = () => {
   }, []);
   const handleRenameNode = useCallback((id: string, name: string) => setNodes(prev => prev.map(n => n.id === id ? { ...n, name } : n)), []);
   const handleUpdateContent = useCallback((id: string, content: string) => {
-    setNodes(prev => prev.map(n => n.id === id ? { ...n, content } : n));
-    if (localSync.isSynced() && localSyncNodeIds.current.has(id)) localSync.writeBack(id, content).catch(() => {});
-  }, []);
+    const target = nodes.find(n => n.id === id);
+    if (!target || target.type !== NodeType.FILE) return;
+
+    if (!isEncryptedContent(target.content)) {
+      setNodes(prev => prev.map(n => n.id === id ? { ...n, content } : n));
+      if (localSync.isSynced() && localSyncNodeIds.current.has(id)) localSync.writeBack(id, content).catch(() => {});
+      return;
+    }
+
+    const password = decryptedNotePasswordsRef.current.get(id);
+    if (!password) return;
+
+    decryptedNotesRef.current.set(id, content);
+    setEncryptionUiVersion(v => v + 1);
+
+    const version = (encryptedContentVersionRef.current.get(id) ?? 0) + 1;
+    encryptedContentVersionRef.current.set(id, version);
+
+    encryptNoteContent(content, password).then((encryptedContent) => {
+      if (encryptedContentVersionRef.current.get(id) !== version) return;
+      setNodes(prev => prev.map(n => n.id === id ? { ...n, content: encryptedContent } : n));
+      if (localSync.isSynced() && localSyncNodeIds.current.has(id)) localSync.writeBack(id, encryptedContent).catch(() => {});
+    }).catch(() => {
+      addToast('error', '노트 암호화 저장 중 오류가 발생했습니다.');
+    });
+  }, [nodes, addToast]);
+
+  const handleEncryptNote = useCallback(async (noteId: string, password: string) => {
+    const target = nodes.find(n => n.id === noteId);
+    if (!target || target.type !== NodeType.FILE) return;
+    if (isEncryptedContent(target.content)) return;
+    if (!password.trim()) {
+      addToast('error', '비밀번호를 입력하세요.');
+      return;
+    }
+
+    const encryptedContent = await encryptNoteContent(target.content || '', password);
+    setNodes(prev => prev.map(n => n.id === noteId ? { ...n, content: encryptedContent } : n));
+    decryptedNotesRef.current.set(noteId, target.content || '');
+    decryptedNotePasswordsRef.current.set(noteId, password);
+    setEncryptionUiVersion(v => v + 1);
+    if (localSync.isSynced() && localSyncNodeIds.current.has(noteId)) localSync.writeBack(noteId, encryptedContent).catch(() => {});
+    addToast('success', '노트 암호화가 활성화되었습니다.');
+  }, [nodes, addToast]);
+
+  const handleDecryptNote = useCallback(async (noteId: string, password: string) => {
+    const target = nodes.find(n => n.id === noteId);
+    if (!target || target.type !== NodeType.FILE || !target.content) return;
+    try {
+      const plain = await decryptNoteContent(target.content, password);
+      decryptedNotesRef.current.set(noteId, plain);
+      decryptedNotePasswordsRef.current.set(noteId, password);
+      setEncryptionUiVersion(v => v + 1);
+      addToast('success', '노트 잠금이 해제되었습니다.');
+    } catch (error: any) {
+      addToast('error', error?.message || '잠금 해제 실패');
+    }
+  }, [nodes, addToast]);
+
+  const handleLockNote = useCallback(async (noteId: string) => {
+    const decrypted = decryptedNotesRef.current.get(noteId);
+    const password = decryptedNotePasswordsRef.current.get(noteId);
+    if (decrypted !== undefined && password) {
+      const encryptedContent = await encryptNoteContent(decrypted, password);
+      setNodes(prev => prev.map(n => n.id === noteId ? { ...n, content: encryptedContent } : n));
+      if (localSync.isSynced() && localSyncNodeIds.current.has(noteId)) localSync.writeBack(noteId, encryptedContent).catch(() => {});
+    }
+
+    decryptedNotesRef.current.delete(noteId);
+    decryptedNotePasswordsRef.current.delete(noteId);
+    encryptedContentVersionRef.current.delete(noteId);
+    setEncryptionUiVersion(v => v + 1);
+    addToast('info', '노트가 다시 잠겼습니다.');
+  }, [addToast]);
   const handleCloseTab = useCallback((id: string) => {
     setOpenTabs(tabs => { const nt = tabs.filter(t => t !== id); setActiveNodeId(prev => prev === id ? (nt.length > 0 ? nt[nt.length - 1] : null) : prev); return nt; });
   }, []);
   const handleRestoreVersion = useCallback((content: string) => {
     if (!activeNodeId) return;
-    setNodes(prev => prev.map(n => n.id === activeNodeId ? { ...n, content } : n));
-    addToast('success', '버전이 복원되었습니다.');
-  }, [activeNodeId, addToast]);
+    const target = nodes.find(n => n.id === activeNodeId);
+    if (!target || target.type !== NodeType.FILE) return;
+
+    if (!isEncryptedContent(target.content)) {
+      setNodes(prev => prev.map(n => n.id === activeNodeId ? { ...n, content } : n));
+      addToast('success', '버전이 복원되었습니다.');
+      return;
+    }
+
+    const password = decryptedNotePasswordsRef.current.get(activeNodeId);
+    if (!password) {
+      addToast('error', '잠금 해제 후 복원할 수 있습니다.');
+      return;
+    }
+
+    decryptedNotesRef.current.set(activeNodeId, content);
+    setEncryptionUiVersion(v => v + 1);
+    encryptNoteContent(content, password).then((encryptedContent) => {
+      setNodes(prev => prev.map(n => n.id === activeNodeId ? { ...n, content: encryptedContent } : n));
+      if (localSync.isSynced() && localSyncNodeIds.current.has(activeNodeId)) localSync.writeBack(activeNodeId, encryptedContent).catch(() => {});
+      addToast('success', '암호화된 노트 버전이 복원되었습니다.');
+    }).catch(() => addToast('error', '복원 중 암호화 실패'));
+  }, [activeNodeId, addToast, nodes]);
   const handleExportZip = useCallback(async () => { await exportAsZip(nodes); addToast('success', 'ZIP 파일 다운로드 완료'); }, [nodes, addToast]);
 
   const handleOpenLocalFolder = async () => {
@@ -288,7 +404,31 @@ const App: React.FC = () => {
       {/* Main */}
       <div className="flex-1 flex flex-col min-w-0 h-full relative transition-colors duration-200" style={{ background: 'var(--bg-main)' }}>
         <TabBar openTabs={openTabs} activeTabId={activeNodeId} nodes={nodes} onSelectTab={handleSelectNode} onCloseTab={handleCloseTab} />
-        <MarkdownEditor activeNode={activeNode} onUpdateContent={handleUpdateContent} onRenameNode={handleRenameNode} onToggleSidebar={() => setSidebarOpen(!isSidebarOpen)} fontSize={settings.fontSize} allNodes={nodes} onNavigateToNote={handleSelectNode} onOpenVersionHistory={() => setVersionHistoryOpen(true)} onExportZip={handleExportZip} />
+        <MarkdownEditor
+          activeNode={activeNodeForEditor}
+          onUpdateContent={handleUpdateContent}
+          onRenameNode={handleRenameNode}
+          onToggleSidebar={() => setSidebarOpen(!isSidebarOpen)}
+          fontSize={settings.fontSize}
+          allNodes={nodes}
+          onNavigateToNote={handleSelectNode}
+          onOpenVersionHistory={() => setVersionHistoryOpen(true)}
+          onExportZip={handleExportZip}
+          isEncrypted={activeNodeIsEncrypted}
+          isUnlocked={activeNodeIsUnlocked}
+          onEncryptNote={async (password) => {
+            if (!activeNodeForEditor) return;
+            await handleEncryptNote(activeNodeForEditor.id, password);
+          }}
+          onUnlockNote={async (password) => {
+            if (!activeNodeForEditor) return;
+            await handleDecryptNote(activeNodeForEditor.id, password);
+          }}
+          onLockNote={async () => {
+            if (!activeNodeForEditor) return;
+            await handleLockNote(activeNodeForEditor.id);
+          }}
+        />
       </div>
 
       <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} settings={settings} onUpdateSettings={setSettings} syncUser={syncUser} onCloudSignIn={handleCloudSignIn} onCloudSignUp={handleCloudSignUp} onCloudSignOut={handleCloudSignOut} onCloudPush={handleCloudPush} onCloudPull={handleCloudPull} localSyncFolder={localSyncFolder} onDisconnectLocal={handleDisconnectLocal} />
