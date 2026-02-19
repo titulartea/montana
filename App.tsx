@@ -22,11 +22,18 @@ const initialNodes: FileSystemNode[] = [
 ];
 
 const defaultSettings: AppSettings = { fontSize: 16, theme: 'system', storageMode: 'local', showLineNumbers: false };
+const validThemes = new Set(['light', 'dark', 'system', 'midnight', 'sepia', 'mint']);
 
 const App: React.FC = () => {
   const [nodes, setNodes] = useState<FileSystemNode[]>(() => { const s = localStorage.getItem('montana-nodes'); return s ? JSON.parse(s) : initialNodes; });
   const [activeNodeId, setActiveNodeId] = useState<string | null>(() => localStorage.getItem('montana-active') || '2');
-  const [settings, setSettings] = useState<AppSettings>(() => { const s = localStorage.getItem('montana-settings'); return s ? { ...defaultSettings, ...JSON.parse(s) } : defaultSettings; });
+  const [settings, setSettings] = useState<AppSettings>(() => {
+    const s = localStorage.getItem('montana-settings');
+    if (!s) return defaultSettings;
+    const parsed = { ...defaultSettings, ...JSON.parse(s) };
+    if (!validThemes.has(parsed.theme)) parsed.theme = 'system';
+    return parsed;
+  });
   const [isSidebarOpen, setSidebarOpen] = useState(window.innerWidth >= 768);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isSearchOpen, setSearchOpen] = useState(false);
@@ -36,6 +43,8 @@ const App: React.FC = () => {
   const [syncUser, setSyncUser] = useState<SyncUser | null>(null);
   const [localSyncFolder, setLocalSyncFolder] = useState<string | null>(localSync.syncedFolderName());
   const localSyncNodeIds = useRef<Set<string>>(new Set());
+  const isCloudMutatingRef = useRef(false);
+  const cloudMutationUnlockTimerRef = useRef<number | null>(null);
   const [importProgress, setImportProgress] = useState<{ scanned: number; currentPath: string } | null>(null);
   const [deferredInstallPrompt, setDeferredInstallPrompt] = useState<any>(null);
 
@@ -78,10 +87,30 @@ const App: React.FC = () => {
   useEffect(() => {
     if (settings.storageMode !== 'cloud' || !settings.supabaseUrl || !settings.supabaseAnonKey || !syncUser) return;
     supabaseSync.subscribeToChanges(settings.supabaseUrl, settings.supabaseAnonKey, () => {
-      supabaseSync.pullAll(settings.supabaseUrl!, settings.supabaseAnonKey!).then(cn => { if (cn.length > 0) setNodes(cn); }).catch(() => {});
+      if (isCloudMutatingRef.current) return;
+      supabaseSync.pullAll(settings.supabaseUrl!, settings.supabaseAnonKey!).then(cn => {
+        setNodes(cn);
+      }).catch(() => {});
     });
     return () => { supabaseSync.unsubscribe(settings.supabaseUrl!, settings.supabaseAnonKey!); };
   }, [settings.storageMode, settings.supabaseUrl, settings.supabaseAnonKey, syncUser]);
+
+  const withCloudMutationGuard = useCallback(async (task: () => Promise<void>) => {
+    isCloudMutatingRef.current = true;
+    if (cloudMutationUnlockTimerRef.current) {
+      window.clearTimeout(cloudMutationUnlockTimerRef.current);
+      cloudMutationUnlockTimerRef.current = null;
+    }
+
+    try {
+      await task();
+    } finally {
+      cloudMutationUnlockTimerRef.current = window.setTimeout(() => {
+        isCloudMutatingRef.current = false;
+        cloudMutationUnlockTimerRef.current = null;
+      }, 1200);
+    }
+  }, []);
 
   // Keyboard shortcut
   useEffect(() => {
@@ -166,19 +195,41 @@ const App: React.FC = () => {
   }, [settings.supabaseUrl, settings.supabaseAnonKey, addToast]);
   const handleCloudPush = useCallback(async () => {
     if (!settings.supabaseUrl || !settings.supabaseAnonKey || !syncUser) return;
-    try { await supabaseSync.pushAll(settings.supabaseUrl, settings.supabaseAnonKey, nodes, syncUser.id); addToast('success', 'Push 완료'); } catch (e: any) { addToast('error', 'Push 실패'); }
-  }, [settings.supabaseUrl, settings.supabaseAnonKey, syncUser, nodes, addToast]);
+    try {
+      await withCloudMutationGuard(async () => {
+        await supabaseSync.pushAll(settings.supabaseUrl!, settings.supabaseAnonKey!, nodes, syncUser.id);
+      });
+      addToast('success', 'Push 완료');
+    } catch (e: any) {
+      addToast('error', 'Push 실패');
+    }
+  }, [settings.supabaseUrl, settings.supabaseAnonKey, syncUser, nodes, addToast, withCloudMutationGuard]);
   const handleCloudPull = useCallback(async () => {
     if (!settings.supabaseUrl || !settings.supabaseAnonKey) return;
-    try { const cn = await supabaseSync.pullAll(settings.supabaseUrl, settings.supabaseAnonKey); setNodes(cn); setOpenTabs([]); setActiveNodeId(null); addToast('success', 'Pull 완료 (' + cn.length + '개)'); } catch (e: any) { addToast('error', 'Pull 실패'); }
-  }, [settings.supabaseUrl, settings.supabaseAnonKey, addToast]);
+    try {
+      await withCloudMutationGuard(async () => {
+        const cn = await supabaseSync.pullAll(settings.supabaseUrl!, settings.supabaseAnonKey!);
+        setNodes(cn);
+        setOpenTabs([]);
+        setActiveNodeId(null);
+        addToast('success', 'Pull 완료 (' + cn.length + '개)');
+      });
+    } catch (e: any) {
+      addToast('error', 'Pull 실패');
+    }
+  }, [settings.supabaseUrl, settings.supabaseAnonKey, addToast, withCloudMutationGuard]);
 
   // Auto-push
   useEffect(() => {
     if (settings.storageMode !== 'cloud' || !settings.supabaseUrl || !settings.supabaseAnonKey || !syncUser) return;
-    const t = setTimeout(() => { supabaseSync.pushAll(settings.supabaseUrl!, settings.supabaseAnonKey!, nodes, syncUser.id).catch(() => {}); }, 3000);
+    if (isCloudMutatingRef.current) return;
+    const t = setTimeout(() => {
+      withCloudMutationGuard(async () => {
+        await supabaseSync.pushAll(settings.supabaseUrl!, settings.supabaseAnonKey!, nodes, syncUser.id);
+      }).catch(() => {});
+    }, 3000);
     return () => clearTimeout(t);
-  }, [nodes, settings.storageMode, settings.supabaseUrl, settings.supabaseAnonKey, syncUser]);
+  }, [nodes, settings.storageMode, settings.supabaseUrl, settings.supabaseAnonKey, syncUser, withCloudMutationGuard]);
 
   return (
     <div className="flex h-[100dvh] overflow-hidden font-sans transition-colors duration-200 relative" style={{ background: 'var(--bg-main)', color: 'var(--text-main)' }}>

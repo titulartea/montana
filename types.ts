@@ -13,7 +13,7 @@ export interface FileSystemNode {
   createdAt: number;
 }
 
-export type Theme = 'light' | 'dark' | 'system';
+export type Theme = 'light' | 'dark' | 'system' | 'midnight' | 'sepia' | 'mint';
 export type StorageMode = 'local' | 'cloud';
 
 export interface AppSettings {

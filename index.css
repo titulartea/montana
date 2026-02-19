@@ -39,6 +39,54 @@ body.theme-dark {
   --vibrancy: rgba(22, 22, 24, 0.85);
 }
 
+body.theme-midnight {
+  --bg-main: #111827;
+  --bg-sidebar: #0b1220;
+  --bg-accent: #60a5fa;
+  --text-main: #e5e7eb;
+  --text-muted: #9ca3af;
+  --border-color: rgba(255, 255, 255, 0.1);
+  --bg-hover: rgba(255, 255, 255, 0.07);
+  --editor-bg: #111827;
+  --code-bg: #1f2937;
+  --selection: rgba(96, 165, 250, 0.25);
+  --shadow-subtle: 0 1px 3px rgba(0, 0, 0, 0.2);
+  --shadow-elevated: 0 8px 32px rgba(0, 0, 0, 0.35);
+  --vibrancy: rgba(11, 18, 32, 0.86);
+}
+
+body.theme-sepia {
+  --bg-main: #f7f2e8;
+  --bg-sidebar: #efe6d6;
+  --bg-accent: #b7791f;
+  --text-main: #3b2f1e;
+  --text-muted: #7b6850;
+  --border-color: rgba(59, 47, 30, 0.12);
+  --bg-hover: rgba(59, 47, 30, 0.06);
+  --editor-bg: #f7f2e8;
+  --code-bg: #ede1cd;
+  --selection: rgba(183, 121, 31, 0.2);
+  --shadow-subtle: 0 1px 3px rgba(59, 47, 30, 0.08);
+  --shadow-elevated: 0 8px 32px rgba(59, 47, 30, 0.12);
+  --vibrancy: rgba(239, 230, 214, 0.86);
+}
+
+body.theme-mint {
+  --bg-main: #effcf6;
+  --bg-sidebar: #e3f8f0;
+  --bg-accent: #0ea5a6;
+  --text-main: #134e4a;
+  --text-muted: #4b7d78;
+  --border-color: rgba(19, 78, 74, 0.12);
+  --bg-hover: rgba(19, 78, 74, 0.06);
+  --editor-bg: #effcf6;
+  --code-bg: #def7ec;
+  --selection: rgba(14, 165, 166, 0.2);
+  --shadow-subtle: 0 1px 3px rgba(19, 78, 74, 0.08);
+  --shadow-elevated: 0 8px 32px rgba(19, 78, 74, 0.12);
+  --vibrancy: rgba(227, 248, 240, 0.86);
+}
+
 @media (prefers-color-scheme: dark) {
   body.theme-system {
     --bg-main: #1c1c1e;
@@ -103,7 +151,17 @@ body {
 .token.italic .token.content { font-style: italic; }
 .token.strike .token.content { text-decoration: line-through; opacity: 0.5; }
 
-.token.blockquote { border-left: 2px solid var(--bg-accent); display: block; padding: 2px 12px; margin: 4px 0; color: var(--text-muted) !important; }
+.token.blockquote { display: inline; color: var(--text-muted) !important; }
+.token.blockquote .token.punctuation {
+  color: var(--text-muted) !important;
+  font-size: inherit !important;
+  letter-spacing: normal !important;
+  display: inline !important;
+  width: auto !important;
+  overflow: visible !important;
+  margin-right: 6px;
+  opacity: 0.7;
+}
 
 .token.url { display: inline; font-size: 0.1em !important; opacity: 0; width: 1px; overflow: hidden; }
 .syntax-visible .token.url, .token.url.syntax-visible { font-size: 0.85em !important; opacity: 0.5 !important; width: auto !important; color: var(--text-muted) !important; }
