@@ -26,12 +26,14 @@ export type Theme =
   | 'sepia'
   | 'mint';
 export type StorageMode = 'local' | 'cloud';
+export type SortOrder = 'folders-first' | 'files-first' | 'name-asc' | 'name-desc';
 
 export interface AppSettings {
   fontSize: number;
   theme: Theme;
   storageMode: StorageMode;
   showLineNumbers: boolean;
+  sortOrder: SortOrder;
   // Supabase cloud sync
   supabaseUrl?: string;
   supabaseAnonKey?: string;

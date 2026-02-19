@@ -1,5 +1,5 @@
 ﻿import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { FileSystemNode, NodeType, AppSettings, SyncUser } from './types';
+import { FileSystemNode, NodeType, AppSettings, SyncUser, SortOrder } from './types';
 import { FileSystemItem } from './components/FileSystemItem';
 import { MarkdownEditor } from './components/MarkdownEditor';
 import { SettingsModal } from './components/SettingsModal';
@@ -22,7 +22,7 @@ const initialNodes: FileSystemNode[] = [
   { id: '3', parentId: null, name: 'Personal', type: NodeType.FOLDER, isOpen: false, createdAt: Date.now() },
 ];
 
-const defaultSettings: AppSettings = { fontSize: 16, theme: 'system', storageMode: 'local', showLineNumbers: false };
+const defaultSettings: AppSettings = { fontSize: 16, theme: 'system', storageMode: 'local', showLineNumbers: false, sortOrder: 'folders-first' };
 const validThemes = new Set(['light', 'dark', 'system', 'dracula', 'one-dark', 'nord', 'solarized-dark', 'github-dark', 'tokyo-night', 'sepia', 'mint']);
 
 const App: React.FC = () => {
@@ -144,7 +144,20 @@ const App: React.FC = () => {
   }, [activeNode, encryptionUiVersion]);
   const activeNodeIsEncrypted = !!activeNode && isEncryptedContent(activeNode.content);
   const activeNodeIsUnlocked = !!activeNode && decryptedNotesRef.current.has(activeNode.id);
-  const rootNodes = useMemo(() => nodes.filter(n => n.parentId === null).sort((a, b) => a.type === NodeType.FOLDER ? -1 : 1), [nodes]);
+  const compareNodes = useCallback((a: FileSystemNode, b: FileSystemNode, order: SortOrder) => {
+    const byName = a.name.localeCompare(b.name, 'ko', { sensitivity: 'base' });
+    if (order === 'name-asc') return byName;
+    if (order === 'name-desc') return -byName;
+    if (a.type === b.type) return byName;
+    if (order === 'files-first') return a.type === NodeType.FILE ? -1 : 1;
+    return a.type === NodeType.FOLDER ? -1 : 1;
+  }, []);
+
+  const rootNodes = useMemo(() => {
+    return nodes
+      .filter(n => n.parentId === null)
+      .sort((a, b) => compareNodes(a, b, settings.sortOrder));
+  }, [nodes, settings.sortOrder, compareNodes]);
 
   const addToast = useCallback((type: ToastMessage['type'], text: string) => {
     setToasts(prev => [...prev, { id: crypto.randomUUID(), type, text }]);
@@ -162,6 +175,35 @@ const App: React.FC = () => {
     setNodes(prev => [...prev, n]);
     if (type === NodeType.FILE) { setActiveNodeId(n.id); setOpenTabs(tabs => [...tabs, n.id]); }
   }, []);
+  const handleResolveWikilink = useCallback((rawName: string) => {
+    const name = rawName.trim();
+    if (!name) return;
+
+    const normalized = name.toLowerCase();
+    const existing = nodes.find(n => n.type === NodeType.FILE && (
+      n.name.toLowerCase() === normalized ||
+      n.name.toLowerCase().replace(/\.md$/i, '') === normalized
+    ));
+
+    if (existing) {
+      handleSelectNode(existing.id);
+      return;
+    }
+
+    const newNode: FileSystemNode = {
+      id: generateId(),
+      parentId: null,
+      name,
+      type: NodeType.FILE,
+      content: `# ${name}\n`,
+      createdAt: Date.now(),
+    };
+
+    setNodes(prev => [...prev, newNode]);
+    setActiveNodeId(newNode.id);
+    setOpenTabs(tabs => tabs.includes(newNode.id) ? tabs : [...tabs, newNode.id]);
+    addToast('info', '위키링크 노트를 새로 만들었습니다.');
+  }, [nodes, handleSelectNode, addToast]);
   const handleDeleteNode = useCallback((id: string) => {
     const del = (tid: string, ns: FileSystemNode[]): FileSystemNode[] => { const ch = ns.filter(n => n.parentId === tid); let r = ns.filter(n => n.id !== tid); ch.forEach(c => { r = del(c.id, r); }); return r; };
     setNodes(prev => del(id, prev)); setActiveNodeId(prev => prev === id ? null : prev); setOpenTabs(tabs => tabs.filter(t => t !== id));
@@ -375,7 +417,7 @@ const App: React.FC = () => {
             <FileSystemItem key={node.id} node={node} allNodes={nodes} activeNodeId={activeNodeId} level={0}
               onToggleFolder={handleToggleFolder} onSelectNode={handleSelectNode}
               onCreateNode={(p, t) => handleCreateNode(p, t)} onDeleteNode={handleDeleteNode}
-              onRenameNode={handleRenameNode} onMoveNode={handleMoveNode} />
+              onRenameNode={handleRenameNode} onMoveNode={handleMoveNode} sortOrder={settings.sortOrder} />
           ))}
           <button onClick={() => handleCreateNode(null, NodeType.FOLDER)} className="w-full text-left px-3 py-2 text-xs flex items-center gap-2 mt-1 rounded-lg hover:bg-[var(--bg-hover)] transition-colors" style={{ color: 'var(--text-muted)' }}>
             <Plus size={12} /> 새 폴더
@@ -412,6 +454,7 @@ const App: React.FC = () => {
           fontSize={settings.fontSize}
           allNodes={nodes}
           onNavigateToNote={handleSelectNode}
+          onResolveWikilink={handleResolveWikilink}
           onOpenVersionHistory={() => setVersionHistoryOpen(true)}
           onExportZip={handleExportZip}
           isEncrypted={activeNodeIsEncrypted}

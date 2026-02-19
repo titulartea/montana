@@ -1,6 +1,6 @@
 ﻿import React from 'react';
-import { X, Cloud, Monitor, LogIn, LogOut, Upload, Download, HardDrive, Unplug, Loader2, Sun, Moon, Laptop, Leaf, BookOpen, Sparkles, CloudMoon, Palette, GitBranch } from 'lucide-react';
-import { AppSettings, Theme, SyncUser } from '../types';
+import { X, Cloud, Monitor, LogIn, LogOut, Upload, Download, HardDrive, Unplug, Loader2 } from 'lucide-react';
+import { AppSettings, Theme, SortOrder, SyncUser } from '../types';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -60,18 +60,36 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
           {/*  Appearance  */}
           <Section title="모양">
-            <div className="grid grid-cols-3 gap-2">
-              <ThemeBtn icon={<Sun size={18}/>} label="라이트" active={settings.theme === 'light'} onClick={() => set({ theme: 'light' })} />
-              <ThemeBtn icon={<Moon size={18}/>} label="다크" active={settings.theme === 'dark'} onClick={() => set({ theme: 'dark' })} />
-              <ThemeBtn icon={<Laptop size={18}/>} label="시스템" active={settings.theme === 'system'} onClick={() => set({ theme: 'system' })} />
-              <ThemeBtn icon={<Sparkles size={18}/>} label="드라큘라" active={settings.theme === 'dracula'} onClick={() => set({ theme: 'dracula' })} />
-              <ThemeBtn icon={<Palette size={18}/>} label="원다크" active={settings.theme === 'one-dark'} onClick={() => set({ theme: 'one-dark' })} />
-              <ThemeBtn icon={<CloudMoon size={18}/>} label="노드" active={settings.theme === 'nord'} onClick={() => set({ theme: 'nord' })} />
-              <ThemeBtn icon={<Moon size={18}/>} label="솔라다크" active={settings.theme === 'solarized-dark'} onClick={() => set({ theme: 'solarized-dark' })} />
-              <ThemeBtn icon={<GitBranch size={18}/>} label="깃허브다크" active={settings.theme === 'github-dark'} onClick={() => set({ theme: 'github-dark' })} />
-              <ThemeBtn icon={<Moon size={18}/>} label="도쿄나이트" active={settings.theme === 'tokyo-night'} onClick={() => set({ theme: 'tokyo-night' })} />
-              <ThemeBtn icon={<BookOpen size={18}/>} label="세피아" active={settings.theme === 'sepia'} onClick={() => set({ theme: 'sepia' })} />
-              <ThemeBtn icon={<Leaf size={18}/>} label="민트" active={settings.theme === 'mint'} onClick={() => set({ theme: 'mint' })} />
+            <SelectRow
+              label="테마"
+              value={settings.theme}
+              onChange={(v) => set({ theme: v as Theme })}
+              options={[
+                { value: 'light', label: '라이트' },
+                { value: 'dark', label: '다크' },
+                { value: 'system', label: '시스템' },
+                { value: 'dracula', label: '드라큘라' },
+                { value: 'one-dark', label: '원다크' },
+                { value: 'nord', label: '노드' },
+                { value: 'solarized-dark', label: '솔라다크' },
+                { value: 'github-dark', label: '깃허브다크' },
+                { value: 'tokyo-night', label: '도쿄나이트' },
+                { value: 'sepia', label: '세피아' },
+                { value: 'mint', label: '민트' },
+              ]}
+            />
+            <div className="mt-3">
+              <SelectRow
+                label="정렬 순서"
+                value={settings.sortOrder}
+                onChange={(v) => set({ sortOrder: v as SortOrder })}
+                options={[
+                  { value: 'folders-first', label: '폴더 우선 + 이름순' },
+                  { value: 'files-first', label: '파일 우선 + 이름순' },
+                  { value: 'name-asc', label: '이름 오름차순' },
+                  { value: 'name-desc', label: '이름 내림차순' },
+                ]}
+              />
             </div>
           </Section>
 
@@ -183,14 +201,29 @@ const Section = ({ title, children }: { title: string; children: React.ReactNode
   </div>
 );
 
-const ThemeBtn = ({ icon, label, active, onClick }: { icon: React.ReactNode; label: string; active: boolean; onClick: () => void }) => (
-  <button
-    onClick={onClick}
-    className={`flex flex-col items-center gap-1.5 py-3 rounded-xl border text-xs font-medium transition-all ${active ? 'border-[var(--bg-accent)] bg-[var(--bg-accent)]/8 text-[var(--bg-accent)]' : 'border-[var(--border-color)] text-[var(--text-muted)] hover:bg-[var(--bg-hover)]'}`}
-  >
-    {icon}
-    {label}
-  </button>
+const SelectRow = ({
+  label,
+  value,
+  onChange,
+  options,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: { value: string; label: string }[];
+}) => (
+  <div>
+    <label className="block text-[11px] text-[var(--text-muted)] mb-1">{label}</label>
+    <select
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className="w-full bg-[var(--bg-main)] border border-[var(--border-color)] rounded-lg px-3 py-2 text-sm text-[var(--text-main)] outline-none focus:border-[var(--bg-accent)] transition-colors"
+    >
+      {options.map((opt) => (
+        <option key={opt.value} value={opt.value}>{opt.label}</option>
+      ))}
+    </select>
+  </div>
 );
 
 const ModeBtn = ({ icon, label, active, onClick }: { icon: React.ReactNode; label: string; active: boolean; onClick: () => void }) => (

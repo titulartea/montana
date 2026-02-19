@@ -1,6 +1,6 @@
 ﻿import React, { useState, useRef, useEffect } from 'react';
 import { ChevronRight, ChevronDown, FileText, Folder, FolderOpen, MoreHorizontal, Edit2, Trash2, Plus } from 'lucide-react';
-import { FileSystemNode, NodeType } from '../types';
+import { FileSystemNode, NodeType, SortOrder } from '../types';
 
 interface FileSystemItemProps {
   node: FileSystemNode;
@@ -13,11 +13,12 @@ interface FileSystemItemProps {
   onDeleteNode: (id: string) => void;
   onRenameNode: (id: string, newName: string) => void;
   onMoveNode: (nodeId: string, newParentId: string | null) => void;
+  sortOrder: SortOrder;
 }
 
 export const FileSystemItem: React.FC<FileSystemItemProps> = ({
   node, allNodes, activeNodeId, level,
-  onToggleFolder, onSelectNode, onCreateNode, onDeleteNode, onRenameNode, onMoveNode,
+  onToggleFolder, onSelectNode, onCreateNode, onDeleteNode, onRenameNode, onMoveNode, sortOrder,
 }) => {
   const [isRenaming, setIsRenaming] = useState(false);
   const [renameValue, setRenameValue] = useState(node.name);
@@ -28,7 +29,11 @@ export const FileSystemItem: React.FC<FileSystemItemProps> = ({
 
   const isActive = activeNodeId === node.id;
   const childNodes = allNodes.filter(n => n.parentId === node.id).sort((a, b) => {
-    if (a.type === b.type) return a.name.localeCompare(b.name);
+    const byName = a.name.localeCompare(b.name, 'ko', { sensitivity: 'base' });
+    if (sortOrder === 'name-asc') return byName;
+    if (sortOrder === 'name-desc') return -byName;
+    if (a.type === b.type) return byName;
+    if (sortOrder === 'files-first') return a.type === NodeType.FILE ? -1 : 1;
     return a.type === NodeType.FOLDER ? -1 : 1;
   });
 
@@ -107,7 +112,7 @@ export const FileSystemItem: React.FC<FileSystemItemProps> = ({
           {childNodes.map(child => (
             <FileSystemItem key={child.id} node={child} allNodes={allNodes} activeNodeId={activeNodeId} level={level + 1}
               onToggleFolder={onToggleFolder} onSelectNode={onSelectNode} onCreateNode={onCreateNode}
-              onDeleteNode={onDeleteNode} onRenameNode={onRenameNode} onMoveNode={onMoveNode} />
+              onDeleteNode={onDeleteNode} onRenameNode={onRenameNode} onMoveNode={onMoveNode} sortOrder={sortOrder} />
           ))}
           {childNodes.length === 0 && <div className="text-xs italic py-1" style={{ paddingLeft: (level + 1) * 14 + 24 + 'px', color: 'var(--text-muted)', opacity: 0.4 }}>비어있음</div>}
         </div>

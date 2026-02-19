@@ -1,5 +1,6 @@
 ﻿import React, { useState, useEffect, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
+import remarkBreaks from 'remark-breaks';
 import { FileSystemNode, NodeType } from '../types';
 import {
   Eye, EyeOff, Download, Menu,
@@ -28,6 +29,7 @@ interface MarkdownEditorProps {
   fontSize: number;
   allNodes: FileSystemNode[];
   onNavigateToNote: (noteId: string) => void;
+  onResolveWikilink: (name: string) => void;
   onOpenVersionHistory: () => void;
   onExportZip: () => void;
   isEncrypted: boolean;
@@ -39,7 +41,7 @@ interface MarkdownEditorProps {
 
 export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
   activeNode, onUpdateContent, onRenameNode, onToggleSidebar, fontSize,
-  allNodes, onNavigateToNote, onOpenVersionHistory, onExportZip,
+  allNodes, onNavigateToNote, onResolveWikilink, onOpenVersionHistory, onExportZip,
   isEncrypted, isUnlocked, onEncryptNote, onUnlockNote, onLockNote,
 }) => {
   const [isPreview, setIsPreview] = useState(false);
@@ -86,10 +88,10 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
 
   const renderWikilinks = useCallback((content: string) => {
     return content.replace(/\[\[([^\]]+)\]\]/g, (_, name) => {
-      const t = allNodes.filter(n => n.type === NodeType.FILE).find(n => n.name.toLowerCase() === name.trim().toLowerCase());
-      return t ? `[${name}](#wikilink:${t.id})` : `[${name}](#wikilink:missing)`;
+      const cleanName = String(name).trim();
+      return `[${cleanName}](#wikilink-name:${encodeURIComponent(cleanName)})`;
     });
-  }, [allNodes]);
+  }, []);
 
   const applyMarkdown = (prefix: string, suffix = '') => {
     const ta = document.querySelector('.custom-editor-wrapper textarea') as HTMLTextAreaElement;
@@ -219,9 +221,21 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
           <div
             className="flex-1 overflow-y-auto p-6 md:p-10 prose prose-slate dark:prose-invert max-w-none pb-20"
             style={{ fontFamily: 'inherit', fontSize: fontSize + 'px', color: 'var(--text-main)' }}
-            onClick={e => { const t = e.target as HTMLAnchorElement; if (t.tagName === 'A' && t.getAttribute('href')?.startsWith('#wikilink:')) { e.preventDefault(); const id = t.getAttribute('href')!.replace('#wikilink:',''); if (id !== 'missing') onNavigateToNote(id); }}}
+            onClick={e => {
+              const t = e.target as HTMLAnchorElement;
+              const href = t.getAttribute('href') || '';
+              if (t.tagName === 'A' && href.startsWith('#wikilink-name:')) {
+                e.preventDefault();
+                const raw = href.replace('#wikilink-name:', '');
+                onResolveWikilink(decodeURIComponent(raw));
+              } else if (t.tagName === 'A' && href.startsWith('#wikilink:')) {
+                e.preventDefault();
+                const id = href.replace('#wikilink:', '');
+                if (id !== 'missing') onNavigateToNote(id);
+              }
+            }}
           >
-            <ReactMarkdown components={{
+            <ReactMarkdown remarkPlugins={[remarkBreaks]} components={{
               p: ({children,...p}: any) => <p {...p}>{processHighlights(children)}</p>,
               li: ({children,...p}: any) => <li {...p}>{processHighlights(children)}</li>,
               h1: ({children,...p}: any) => <h1 {...p}>{processHighlights(children)}</h1>,
