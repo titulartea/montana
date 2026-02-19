@@ -17,6 +17,11 @@ import { Plus, Mountain, FolderInput, Settings, X, Search, RefreshCw, Download a
 const generateId = () => crypto.randomUUID();
 const DRAFT_NOTE_ID = '__draft_note__';
 
+interface RuntimeConfig {
+  supabaseUrl?: string;
+  supabaseAnonKey?: string;
+}
+
 const initialNodes: FileSystemNode[] = [
   { id: '1', parentId: null, name: 'Welcome', type: NodeType.FOLDER, isOpen: true, createdAt: Date.now() },
   { id: '2', parentId: '1', name: 'Start Here', type: NodeType.FILE, content: '# Montana에 오신 것을 환영합니다\n\n깔끔하고 가벼운 마크다운 노트 앱입니다.\n\n## 특징\n- **보이지 않는 문법**  마크다운 기호가 자동으로 숨겨집니다\n- **클라우드 동기화**  Supabase로 여러 기기 간 동기화\n- **로컬 폴더 동기화**  파일을 직접 관리하세요\n- **==하이라이트==**  이중 등호로 강조할 수 있어요\n\n새 노트를 만들어 보세요!', createdAt: Date.now() },
@@ -74,6 +79,38 @@ const App: React.FC = () => {
   useEffect(() => { if (activeNodeId) localStorage.setItem('montana-active', activeNodeId); }, [activeNodeId]);
   useEffect(() => { localStorage.setItem('montana-settings', JSON.stringify(settings)); document.body.className = 'theme-' + settings.theme; }, [settings]);
   useEffect(() => { localStorage.setItem('montana-tabs', JSON.stringify(openTabs)); }, [openTabs]);
+
+  useEffect(() => {
+    let aborted = false;
+
+    fetch('/app-config.json', { cache: 'no-store' })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((config: RuntimeConfig | null) => {
+        if (aborted || !config) return;
+        const supabaseUrl = config.supabaseUrl?.trim();
+        const supabaseAnonKey = config.supabaseAnonKey?.trim();
+        if (!supabaseUrl && !supabaseAnonKey) return;
+
+        setSettings((prev) => {
+          let changed = false;
+          const next = { ...prev };
+          if (!next.supabaseUrl && supabaseUrl) {
+            next.supabaseUrl = supabaseUrl;
+            changed = true;
+          }
+          if (!next.supabaseAnonKey && supabaseAnonKey) {
+            next.supabaseAnonKey = supabaseAnonKey;
+            changed = true;
+          }
+          return changed ? next : prev;
+        });
+      })
+      .catch(() => {});
+
+    return () => {
+      aborted = true;
+    };
+  }, []);
 
   // Version history
   useEffect(() => {

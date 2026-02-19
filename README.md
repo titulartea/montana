@@ -18,3 +18,16 @@ View your app in AI Studio: https://ai.studio/apps/drive/1ns_uscswWGqvJAPRmgRh-j
 2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
 3. Run the app:
    `npm run dev`
+
+## Supabase without Cloudflare env vars
+
+If you don't want to set environment variables in Cloudflare Pages, you can put your Supabase config in:
+
+- [public/app-config.json](public/app-config.json)
+
+Fill these values once and deploy:
+
+- `supabaseUrl`
+- `supabaseAnonKey`
+
+Then first-time users can sign in without manually entering URL/key in Settings.
