@@ -1,442 +1,125 @@
-@tailwind base;
+﻿@tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 /* ============================================
-   Theme Definitions (CSS Custom Properties)
+   Apple-style Theme Definitions
+   3 themes: Light (default), Dark, System (follows OS)
    ============================================ */
 :root {
-  --bg-main: #1e1e1e;
-  --bg-sidebar: #161616;
-  --bg-accent: #7c3aed;
-  --text-main: #dcddde;
-  --text-muted: #8e9297;
-  --border-color: #2f3136;
-  --bg-hover: #36393f;
-  --editor-bg: #1e1e1e;
-  --editor-line: #2f3136;
-  --code-bg: #2b2b2b;
-
-  /* Syntax Hiding Variables */
-  --syntax-opacity: 0.2;
-  --syntax-size: 0.6em;
-}
-
-body.theme-light {
+  color-scheme: light dark;
   --bg-main: #ffffff;
-  --bg-sidebar: #f7f7f7;
-  --bg-accent: #3b82f6;
-  --text-main: #37352f;
-  --text-muted: #9ca3af;
-  --border-color: #e5e7eb;
-  --bg-hover: #e5e7eb;
+  --bg-sidebar: #f5f5f7;
+  --bg-accent: #007aff;
+  --text-main: #1d1d1f;
+  --text-muted: #86868b;
+  --border-color: rgba(0, 0, 0, 0.08);
+  --bg-hover: rgba(0, 0, 0, 0.04);
   --editor-bg: #ffffff;
-  --editor-line: #e5e7eb;
-  --code-bg: #f3f4f6;
+  --code-bg: #f5f5f7;
+  --selection: rgba(0, 122, 255, 0.15);
+  --shadow-subtle: 0 1px 3px rgba(0, 0, 0, 0.06);
+  --shadow-elevated: 0 8px 32px rgba(0, 0, 0, 0.08);
+  --vibrancy: rgba(245, 245, 247, 0.8);
 }
 
-body.theme-nord {
-  --bg-main: #2e3440;
-  --bg-sidebar: #242933;
-  --bg-accent: #88c0d0;
-  --text-main: #d8dee9;
-  --text-muted: #4c566a;
-  --border-color: #434c5e;
-  --bg-hover: #3b4252;
-  --editor-bg: #2e3440;
-  --editor-line: #434c5e;
-  --code-bg: #3b4252;
+body.theme-dark {
+  --bg-main: #1c1c1e;
+  --bg-sidebar: #161618;
+  --bg-accent: #0a84ff;
+  --text-main: #f5f5f7;
+  --text-muted: #98989d;
+  --border-color: rgba(255, 255, 255, 0.08);
+  --bg-hover: rgba(255, 255, 255, 0.06);
+  --editor-bg: #1c1c1e;
+  --code-bg: #2c2c2e;
+  --selection: rgba(10, 132, 255, 0.25);
+  --shadow-subtle: 0 1px 3px rgba(0, 0, 0, 0.2);
+  --shadow-elevated: 0 8px 32px rgba(0, 0, 0, 0.3);
+  --vibrancy: rgba(22, 22, 24, 0.85);
 }
 
-body.theme-dracula {
-  --bg-main: #282a36;
-  --bg-sidebar: #21222c;
-  --bg-accent: #ff79c6;
-  --text-main: #f8f8f2;
-  --text-muted: #6272a4;
-  --border-color: #44475a;
-  --bg-hover: #44475a;
-  --editor-bg: #282a36;
-  --editor-line: #44475a;
-  --code-bg: #44475a;
+@media (prefers-color-scheme: dark) {
+  body.theme-system {
+    --bg-main: #1c1c1e;
+    --bg-sidebar: #161618;
+    --bg-accent: #0a84ff;
+    --text-main: #f5f5f7;
+    --text-muted: #98989d;
+    --border-color: rgba(255, 255, 255, 0.08);
+    --bg-hover: rgba(255, 255, 255, 0.06);
+    --editor-bg: #1c1c1e;
+    --code-bg: #2c2c2e;
+    --selection: rgba(10, 132, 255, 0.25);
+    --shadow-subtle: 0 1px 3px rgba(0, 0, 0, 0.2);
+    --shadow-elevated: 0 8px 32px rgba(0, 0, 0, 0.3);
+    --vibrancy: rgba(22, 22, 24, 0.85);
+  }
 }
 
-body.theme-solarized {
-  --bg-main: #fdf6e3;
-  --bg-sidebar: #eee8d5;
-  --bg-accent: #d33682;
-  --text-main: #657b83;
-  --text-muted: #93a1a1;
-  --border-color: #d3d7cf;
-  --bg-hover: #e0e0e0;
-  --editor-bg: #fdf6e3;
-  --editor-line: #eee8d5;
-  --code-bg: #eee8d5;
-}
-
-body.theme-forest {
-  --bg-main: #1b262c;
-  --bg-sidebar: #0f171b;
-  --bg-accent: #22c55e;
-  --text-main: #bbe1fa;
-  --text-muted: #567086;
-  --border-color: #3282b8;
-  --bg-hover: #203341;
-  --editor-bg: #1b262c;
-  --editor-line: #3282b8;
-  --code-bg: #152026;
-}
-
-body.theme-cyberpunk {
-  --bg-main: #050505;
-  --bg-sidebar: #000000;
-  --bg-accent: #00ff9f;
-  --text-main: #e0e0e0;
-  --text-muted: #ff00ff;
-  --border-color: #333333;
-  --bg-hover: #1a1a1a;
-  --editor-bg: #050505;
-  --editor-line: #333333;
-  --code-bg: #121212;
-}
-
-body.theme-monokai {
-  --bg-main: #272822;
-  --bg-sidebar: #1e1f1c;
-  --bg-accent: #f92672;
-  --text-main: #f8f8f2;
-  --text-muted: #75715e;
-  --border-color: #3e3d32;
-  --bg-hover: #3e3d32;
-  --editor-bg: #272822;
-  --editor-line: #3e3d32;
-  --code-bg: #1e1f1c;
-}
-
-body.theme-gruvbox {
-  --bg-main: #282828;
-  --bg-sidebar: #1d2021;
-  --bg-accent: #fe8019;
-  --text-main: #ebdbb2;
-  --text-muted: #928374;
-  --border-color: #3c3836;
-  --bg-hover: #3c3836;
-  --editor-bg: #282828;
-  --editor-line: #3c3836;
-  --code-bg: #1d2021;
-}
-
-body.theme-catppuccin {
-  --bg-main: #1e1e2e;
-  --bg-sidebar: #181825;
-  --bg-accent: #cba6f7;
-  --text-main: #cdd6f4;
-  --text-muted: #6c7086;
-  --border-color: #313244;
-  --bg-hover: #313244;
-  --editor-bg: #1e1e2e;
-  --editor-line: #313244;
-  --code-bg: #181825;
-}
-
-body.theme-tokyonight {
-  --bg-main: #1a1b26;
-  --bg-sidebar: #16161e;
-  --bg-accent: #7aa2f7;
-  --text-main: #c0caf5;
-  --text-muted: #565f89;
-  --border-color: #292e42;
-  --bg-hover: #292e42;
-  --editor-bg: #1a1b26;
-  --editor-line: #292e42;
-  --code-bg: #16161e;
-}
-
-body.theme-rosepine {
-  --bg-main: #191724;
-  --bg-sidebar: #1f1d2e;
-  --bg-accent: #ebbcba;
-  --text-main: #e0def4;
-  --text-muted: #6e6a86;
-  --border-color: #26233a;
-  --bg-hover: #26233a;
-  --editor-bg: #191724;
-  --editor-line: #26233a;
-  --code-bg: #1f1d2e;
-}
-
-body.theme-kanagawa {
-  --bg-main: #1f1f28;
-  --bg-sidebar: #16161d;
-  --bg-accent: #957fb8;
-  --text-main: #dcd7ba;
-  --text-muted: #727169;
-  --border-color: #2a2a37;
-  --bg-hover: #2a2a37;
-  --editor-bg: #1f1f28;
-  --editor-line: #2a2a37;
-  --code-bg: #16161d;
-}
-
-body.theme-ayu {
-  --bg-main: #0b0e14;
-  --bg-sidebar: #07090d;
-  --bg-accent: #e6b450;
-  --text-main: #bfbdb6;
-  --text-muted: #636a76;
-  --border-color: #1c1f27;
-  --bg-hover: #1c1f27;
-  --editor-bg: #0b0e14;
-  --editor-line: #1c1f27;
-  --code-bg: #07090d;
-}
-
-body.theme-onedark {
-  --bg-main: #282c34;
-  --bg-sidebar: #21252b;
-  --bg-accent: #61afef;
-  --text-main: #abb2bf;
-  --text-muted: #5c6370;
-  --border-color: #3e4451;
-  --bg-hover: #3e4451;
-  --editor-bg: #282c34;
-  --editor-line: #3e4451;
-  --code-bg: #21252b;
-}
-
-body.theme-palenight {
-  --bg-main: #292d3e;
-  --bg-sidebar: #1f2233;
-  --bg-accent: #c792ea;
-  --text-main: #a6accd;
-  --text-muted: #676e95;
-  --border-color: #3a3f58;
-  --bg-hover: #3a3f58;
-  --editor-bg: #292d3e;
-  --editor-line: #3a3f58;
-  --code-bg: #1f2233;
-}
-
-body.theme-synthwave {
-  --bg-main: #2b213a;
-  --bg-sidebar: #241b31;
-  --bg-accent: #ff7edb;
-  --text-main: #f0e8ff;
-  --text-muted: #8076a3;
-  --border-color: #3d3456;
-  --bg-hover: #3d3456;
-  --editor-bg: #2b213a;
-  --editor-line: #3d3456;
-  --code-bg: #241b31;
-}
-
-body.theme-everforest {
-  --bg-main: #2d353b;
-  --bg-sidebar: #272e33;
-  --bg-accent: #a7c080;
-  --text-main: #d3c6aa;
-  --text-muted: #859289;
-  --border-color: #3d484d;
-  --bg-hover: #3d484d;
-  --editor-bg: #2d353b;
-  --editor-line: #3d484d;
-  --code-bg: #272e33;
-}
-
-body.theme-iceberg {
-  --bg-main: #161821;
-  --bg-sidebar: #0f1117;
-  --bg-accent: #84a0c6;
-  --text-main: #c6c8d1;
-  --text-muted: #6b7089;
-  --border-color: #1e2132;
-  --bg-hover: #1e2132;
-  --editor-bg: #161821;
-  --editor-line: #1e2132;
-  --code-bg: #0f1117;
-}
-
-body.theme-horizon {
-  --bg-main: #1c1e26;
-  --bg-sidebar: #16161c;
-  --bg-accent: #e95678;
-  --text-main: #d5d8da;
-  --text-muted: #6c6f93;
-  --border-color: #2e303e;
-  --bg-hover: #2e303e;
-  --editor-bg: #1c1e26;
-  --editor-line: #2e303e;
-  --code-bg: #16161c;
-}
-
-/* ============================================
-   Global Reset & Scrollbar
-   ============================================ */
+/* ============================================ Global ============================================ */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: var(--bg-sidebar); }
-::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--text-muted); border-radius: 3px; opacity: 0.3; }
+::-webkit-scrollbar-thumb:hover { opacity: 0.5; }
+* { -webkit-tap-highlight-color: transparent; }
 
 body {
   background-color: var(--bg-main);
   color: var(--text-main);
-  font-family: 'Pretendard', 'Inter', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
-  transition: background-color 0.3s ease, color 0.3s ease;
+  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif;
+  transition: background-color 0.2s ease, color 0.2s ease;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* ============================================
-   WYSIWYG / Invisible Syntax Styling
-   ============================================ */
+::selection { background: var(--selection); }
 
+/* ============================================ WYSIWYG Invisible Syntax ============================================ */
 .custom-editor-wrapper {
-  font-family: 'Pretendard', sans-serif !important;
-  line-height: 1.6 !important;
+  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif !important;
+  line-height: 1.75 !important;
 }
+.custom-editor-wrapper textarea { outline: none !important; }
 
-/*
-   DEFAULT STATE: HIDDEN
-   Syntax markers are hidden by shrinking them.
-*/
 .token.punctuation {
-  color: transparent !important;
-  font-size: 1px !important;
-  letter-spacing: -1ch;
-  display: inline-block;
-  width: 1px;
-  overflow: hidden;
-  vertical-align: middle;
-  transition: all 0.1s ease-out;
+  color: transparent !important; font-size: 1px !important; letter-spacing: -1ch;
+  display: inline-block; width: 1px; overflow: hidden; vertical-align: middle; transition: all 0.15s ease;
 }
-
-/* Exception: List bullets always visible */
 .token.list.punctuation {
-  color: var(--bg-accent) !important;
-  font-size: inherit !important;
-  letter-spacing: normal !important;
-  width: auto !important;
-  margin-right: 5px;
-  display: inline !important;
+  color: var(--bg-accent) !important; font-size: inherit !important; letter-spacing: normal !important;
+  width: auto !important; margin-right: 4px; display: inline !important;
+}
+.syntax-visible .token.punctuation, .token.punctuation.syntax-visible {
+  color: var(--text-muted) !important; font-size: inherit !important; letter-spacing: normal !important;
+  width: auto !important; display: inline !important;
 }
 
-/*
-   ACTIVE STATE: VISIBLE
-   When the 'syntax-visible' class is applied (cursor is nearby),
-   we restore the styling to make it visible and editable.
-*/
-.syntax-visible .token.punctuation,
-.token.punctuation.syntax-visible {
-  color: var(--text-muted) !important;
-  font-size: inherit !important;
-  letter-spacing: normal !important;
-  width: auto !important;
-  display: inline !important;
-}
+.token.title.h1 { font-size: 2em; font-weight: 700; color: var(--text-main) !important; display: block; margin-top: 0.6em; letter-spacing: -0.02em; }
+.token.title.h2 { font-size: 1.5em; font-weight: 600; color: var(--text-main) !important; display: block; margin-top: 0.5em; }
+.token.title.h3 { font-size: 1.25em; font-weight: 600; color: var(--text-main) !important; display: block; margin-top: 0.4em; }
 
-/* Headers */
-.token.title.h1 { font-size: 2.25em; font-weight: 800; color: var(--text-main) !important; display: block; margin-top: 0.5em; border-bottom: 1px solid var(--border-color); padding-bottom: 0.2em; }
-.token.title.h2 { font-size: 1.75em; font-weight: 700; color: var(--text-main) !important; display: block; margin-top: 0.5em; }
-.token.title.h3 { font-size: 1.4em; font-weight: 600; color: var(--text-main) !important; display: block; margin-top: 0.5em; }
-
-/* Styling the content inside formatting */
-.token.bold .token.content { font-weight: 700; color: var(--bg-accent) !important; }
+.token.bold .token.content { font-weight: 600; }
 .token.italic .token.content { font-style: italic; }
-.token.strike .token.content { text-decoration: line-through; opacity: 0.6; }
+.token.strike .token.content { text-decoration: line-through; opacity: 0.5; }
 
-/* Blockquotes */
-.token.blockquote {
-  border-left: 3px solid var(--bg-accent);
-  background: var(--bg-hover);
-  display: block;
-  padding: 4px 8px;
-  margin: 4px 0;
-  color: var(--text-muted) !important;
-}
+.token.blockquote { border-left: 2px solid var(--bg-accent); display: block; padding: 2px 12px; margin: 4px 0; color: var(--text-muted) !important; }
 
-/* Links & URLs */
-/* Default: URL hidden/faint */
-.token.url {
-  display: inline;
-  font-size: 0.1em !important;
-  opacity: 0;
-  width: 1px;
-  overflow: hidden;
-}
+.token.url { display: inline; font-size: 0.1em !important; opacity: 0; width: 1px; overflow: hidden; }
+.syntax-visible .token.url, .token.url.syntax-visible { font-size: 0.85em !important; opacity: 0.5 !important; width: auto !important; color: var(--text-muted) !important; }
 
-/* Active: URL visible */
-.syntax-visible .token.url,
-.token.url.syntax-visible {
-  font-size: 0.8em !important;
-  opacity: 0.6 !important;
-  width: auto !important;
-  color: var(--text-muted) !important;
-}
+.token.highlight-marker { background: rgba(255, 214, 10, 0.2); color: var(--text-main) !important; border-radius: 3px; padding: 0 2px; }
+.token.highlight-marker .token.punctuation { color: transparent !important; font-size: 1px !important; letter-spacing: -1ch; width: 1px; overflow: hidden; }
+.syntax-visible.token.highlight-marker .token.punctuation, .token.highlight-marker.syntax-visible .token.punctuation { color: var(--text-muted) !important; font-size: inherit !important; letter-spacing: normal !important; width: auto !important; }
 
-::selection {
-  background: rgba(124, 58, 237, 0.3);
-}
-
-.custom-editor-wrapper textarea {
-  outline: none !important;
-}
+.prose mark { background: rgba(255, 214, 10, 0.25); color: inherit; padding: 1px 3px; border-radius: 3px; }
+.prose a[href^="#wikilink:"] { color: var(--bg-accent) !important; text-decoration: none; border-bottom: 1px solid var(--bg-accent); cursor: pointer; }
+.prose a[href="#wikilink:missing"] { color: var(--text-muted) !important; opacity: 0.4; border-bottom-style: dashed; }
 
 .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
-
-/* Tailwind "scrollbar-hide" utility */
 @layer utilities {
-  .scrollbar-hide {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-  }
-  .scrollbar-hide::-webkit-scrollbar {
-    display: none;
-  }
+  .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+  .scrollbar-hide::-webkit-scrollbar { display: none; }
 }
 
-/* Wikilinks in preview */
-.prose a[href^="#wikilink:"] {
-  color: var(--bg-accent) !important;
-  text-decoration: underline;
-  text-decoration-style: dotted;
-  cursor: pointer;
-}
-.prose a[href="#wikilink:missing"] {
-  color: var(--text-muted) !important;
-  opacity: 0.5;
-}
-
-/* Drag-over highlight for sidebar items */
-[data-drag-over="true"] {
-  outline: 2px solid var(--bg-accent);
-  outline-offset: -2px;
-  background: rgba(124, 58, 237, 0.1);
-}
-
-/* ==highlight== marker style in editor */
-.token.highlight-marker {
-  background: rgba(250, 204, 21, 0.25);
-  color: var(--text-main) !important;
-  border-radius: 2px;
-  padding: 0 1px;
-}
-.token.highlight-marker .token.punctuation {
-  color: transparent !important;
-  font-size: 1px !important;
-  letter-spacing: -1ch;
-  width: 1px;
-  overflow: hidden;
-}
-.syntax-visible.token.highlight-marker .token.punctuation,
-.token.highlight-marker.syntax-visible .token.punctuation {
-  color: var(--text-muted) !important;
-  font-size: inherit !important;
-  letter-spacing: normal !important;
-  width: auto !important;
-}
-
-/* ==highlight== in preview */
-.prose mark {
-  background: rgba(250, 204, 21, 0.3);
-  color: inherit;
-  padding: 0 2px;
-  border-radius: 2px;
-}
+[data-drag-over="true"] { outline: 2px solid var(--bg-accent); outline-offset: -2px; border-radius: 8px; }

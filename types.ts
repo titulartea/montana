@@ -13,10 +13,7 @@ export interface FileSystemNode {
   createdAt: number;
 }
 
-export type Theme =
-  | 'montana' | 'light' | 'nord' | 'dracula' | 'solarized' | 'forest' | 'cyberpunk'
-  | 'monokai' | 'gruvbox' | 'catppuccin' | 'tokyonight' | 'rosepine' | 'kanagawa'
-  | 'ayu' | 'onedark' | 'palenight' | 'synthwave' | 'everforest' | 'iceberg' | 'horizon';
+export type Theme = 'light' | 'dark' | 'system';
 export type StorageMode = 'local' | 'cloud';
 
 export interface AppSettings {
@@ -48,10 +45,3 @@ export interface SupabaseNote {
   user_id: string;  // uuid from auth.users
 }
 
-export interface AppState {
-  nodes: FileSystemNode[];
-  activeNodeId: string | null;
-  sidebarVisible: boolean;
-  aiPanelVisible: boolean;
-  settings: AppSettings;
-}

@@ -1,27 +1,21 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+﻿import React, { useState, useEffect, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { FileSystemNode, NodeType } from '../types';
-import { 
-  Eye, EyeOff, Save, Download, Menu, 
+import {
+  Eye, EyeOff, Download, Menu,
   Bold, Italic, List, CheckSquare, Link as LinkIcon, Heading, Quote, Strikethrough,
-  Clock, FileDown, FileArchive, Image as ImageIcon, FileText
+  Clock, FileDown, FileArchive, FileText
 } from 'lucide-react';
 import { exportAsHTML } from '../services/exportService';
-
-// Import Editor and Prism for highlighting
 import Editor from 'react-simple-code-editor';
 import Prism from 'prismjs';
 import 'prismjs/components/prism-markdown.js';
 
-// Extend Prism markdown grammar with ==highlight== support
 if (Prism.languages.markdown) {
   Prism.languages.insertBefore('markdown', 'bold', {
     'highlight-marker': {
       pattern: /==(?!\s)[^=]*?(?!\s)==/,
-      inside: {
-        content: /[^=]+/,
-        punctuation: /==/,
-      },
+      inside: { content: /[^=]+/, punctuation: /==/ },
     },
   });
 }
@@ -38,217 +32,71 @@ interface MarkdownEditorProps {
   onExportZip: () => void;
 }
 
-export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({ 
-  activeNode, 
-  onUpdateContent,
-  onRenameNode,
-  onToggleSidebar,
-  fontSize,
-  allNodes,
-  onNavigateToNote,
-  onOpenVersionHistory,
-  onExportZip,
+export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
+  activeNode, onUpdateContent, onRenameNode, onToggleSidebar, fontSize,
+  allNodes, onNavigateToNote, onOpenVersionHistory, onExportZip,
 }) => {
   const [isPreview, setIsPreview] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
   const [cursorOffset, setCursorOffset] = useState(0);
 
-  // Auto-save simulation effect
-  useEffect(() => {
-    if (activeNode) {
-      setIsSaving(true);
-      const timer = setTimeout(() => setIsSaving(false), 800);
-      return () => clearTimeout(timer);
-    }
-  }, [activeNode?.content]);
-
-  // Helper to calculate text length of a Prism Token tree
   const getTokenLength = (token: Prism.Token | string): number => {
-    if (typeof token === 'string') {
-      return token.length;
-    } else if (Array.isArray(token.content)) {
-      return token.content.reduce((acc, t) => acc + getTokenLength(t), 0);
-    } else {
-      return getTokenLength(token.content);
-    }
+    if (typeof token === 'string') return token.length;
+    if (Array.isArray(token.content)) return token.content.reduce((a, t) => a + getTokenLength(t), 0);
+    return getTokenLength(token.content);
   };
 
-  // Custom Highlighter that is aware of cursor position
   const highlightWithCursor = useCallback((code: string) => {
-    // 1. Tokenize the code
     const tokens = Prism.tokenize(code, Prism.languages.markdown);
-    
-    let currentPos = 0;
-
-    // 2. Recursive function to render tokens to HTML string
-    //    It checks if the current cursor position falls within the range of a token.
-    const processToken = (token: Prism.Token | string, forceVisible: boolean = false): string => {
-      if (typeof token === 'string') {
-        const len = token.length;
-        currentPos += len;
-        // Escape HTML entities in the string content
-        return Prism.util.encode(token);
-      }
-
-      const type = token.type;
-      const content = token.content;
-      const alias = token.alias || '';
-      
-      const tokenLen = getTokenLength(token);
-      const start = currentPos;
-      const end = currentPos + tokenLen;
-
-      // 3. Check if cursor is inside this block (inclusive of edges)
-      const isCursorInside = (cursorOffset >= start && cursorOffset <= end);
-      
-      // 4. Define formatting blocks that we care about hiding/showing
-      const formattingTypes = ['bold', 'italic', 'strike', 'url', 'blockquote', 'title', 'code-snippet', 'list', 'highlight-marker'];
-      const isFormattingBlock = formattingTypes.includes(type);
-
-      // 5. Determine if we should reveal syntax
-      //    Reveal if: We are forced by parent, OR this is a formatting block and cursor is inside.
-      const shouldReveal = forceVisible || (isFormattingBlock && isCursorInside);
-
-      // Recurse into children
-      let encodedContent = '';
-      if (Array.isArray(content)) {
-        encodedContent = content.map(child => processToken(child, shouldReveal)).join('');
-      } else {
-        encodedContent = processToken(content as any, shouldReveal);
-      }
-
-      // 6. Apply classes. 'syntax-visible' will trigger CSS to show hidden punctuation.
-      const classes = `token ${type} ${alias} ${shouldReveal ? 'syntax-visible' : ''}`;
-      
-      return `<span class="${classes}">${encodedContent}</span>`;
+    let pos = 0;
+    const process = (token: Prism.Token | string, forceVis = false): string => {
+      if (typeof token === 'string') { pos += token.length; return Prism.util.encode(token); }
+      const len = getTokenLength(token);
+      const start = pos, end = pos + len;
+      const cursorIn = cursorOffset >= start && cursorOffset <= end;
+      const fmtTypes = ['bold','italic','strike','url','blockquote','title','code-snippet','list','highlight-marker'];
+      const isFmt = fmtTypes.includes(token.type);
+      const show = forceVis || (isFmt && cursorIn);
+      let inner = '';
+      if (Array.isArray(token.content)) inner = token.content.map(c => process(c, show)).join('');
+      else inner = process(token.content as any, show);
+      return `<span class="token ${token.type} ${token.alias || ''} ${show ? 'syntax-visible' : ''}">${inner}</span>`;
     };
-
-    return tokens.map(t => processToken(t)).join('');
+    return tokens.map(t => process(t)).join('');
   }, [cursorOffset]);
 
-  if (!activeNode) {
-    return (
-      <div className="flex-1 flex flex-col items-center justify-center text-obsidian-muted bg-obsidian-bg h-full p-4 text-center">
-        <button onClick={onToggleSidebar} className="md:hidden absolute top-4 left-4 p-2 text-obsidian-text">
-            <Menu />
-        </button>
-        <FileText size={48} className="mb-4 opacity-20" />
-        <p className="text-lg font-medium">No File Selected</p>
-        <p className="text-sm opacity-60 mt-2">Open the sidebar to select or create a note.</p>
-      </div>
-    );
-  }
-
-  const handleDownload = () => {
-    if (!activeNode.content) return;
-    const blob = new Blob([activeNode.content], { type: 'text/markdown' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${activeNode.name}.md`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  };
-
-  const handleExportHTML = () => {
-    if (!activeNode) return;
-    exportAsHTML(activeNode);
-  };
-
-  // Image paste handler
-  const handlePaste = useCallback((e: React.ClipboardEvent) => {
-    const items = e.clipboardData?.items;
-    if (!items || !activeNode) return;
-
-    for (let i = 0; i < items.length; i++) {
-      const item = items[i];
-      if (item.type.startsWith('image/')) {
-        e.preventDefault();
-        const file = item.getAsFile();
-        if (!file) return;
-
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-          const base64 = ev.target?.result as string;
-          if (!base64) return;
-
-          const textarea = document.querySelector('.custom-editor-wrapper textarea') as HTMLTextAreaElement;
-          const pos = textarea?.selectionStart || (activeNode.content?.length || 0);
-          const text = activeNode.content || '';
-          const imgMd = `![image](${base64})`;
-          const newText = text.substring(0, pos) + imgMd + text.substring(pos);
-          onUpdateContent(activeNode.id, newText);
-        };
-        reader.readAsDataURL(file);
-        break;
-      }
-    }
-  }, [activeNode, onUpdateContent]);
-
-  // Process inline ==highlight== in React children (for preview)
   const processHighlights = useCallback((children: React.ReactNode): React.ReactNode => {
-    return React.Children.map(children, (child) => {
+    return React.Children.map(children, child => {
       if (typeof child !== 'string') {
-        // If it's a React element with children, recurse
-        if (React.isValidElement(child) && (child.props as any)?.children) {
+        if (React.isValidElement(child) && (child.props as any)?.children)
           return React.cloneElement(child as React.ReactElement<any>, {}, processHighlights((child.props as any).children));
-        }
         return child;
       }
       if (!child.includes('==')) return child;
       const parts = child.split(/(==[^=]+==)/);
       if (parts.length === 1) return child;
-      return parts.map((part: string, i: number) => {
-        const m = part.match(/^==([^=]+)==$/);
-        if (m) return <mark key={i}>{m[1]}</mark>;
-        return part;
-      });
+      return parts.map((p: string, i: number) => { const m = p.match(/^==([^=]+)==$/); return m ? <mark key={i}>{m[1]}</mark> : p; });
     });
   }, []);
 
-  // Wikilink click handler for preview mode
   const renderWikilinks = useCallback((content: string) => {
-    // Replace [[note name]] with clickable links
-    let processed = content.replace(/\[\[([^\]]+)\]\]/g, (match, noteName) => {
-      const fileNodes = allNodes.filter(n => n.type === NodeType.FILE);
-      const target = fileNodes.find(n => n.name.toLowerCase() === noteName.trim().toLowerCase());
-      if (target) {
-        return `[${noteName}](#wikilink:${target.id})`;
-      }
-      return `[${noteName}](#wikilink:missing)`;
+    return content.replace(/\[\[([^\]]+)\]\]/g, (_, name) => {
+      const t = allNodes.filter(n => n.type === NodeType.FILE).find(n => n.name.toLowerCase() === name.trim().toLowerCase());
+      return t ? `[${name}](#wikilink:${t.id})` : `[${name}](#wikilink:missing)`;
     });
-    return processed;
-  }, [allNodes]);  // eslint-disable-line react-hooks/exhaustive-deps
+  }, [allNodes]);
 
-  const applyMarkdown = (prefix: string, suffix: string = '') => {
-    if (!activeNode.content && activeNode.content !== '') return;
-    const textarea = document.querySelector('.custom-editor-wrapper textarea') as HTMLTextAreaElement;
-    if (!textarea) return;
-
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const text = activeNode.content || '';
-    const before = text.substring(0, start);
-    const selected = text.substring(start, end);
-    const after = text.substring(end);
-    const newText = `${before}${prefix}${selected}${suffix}${after}`;
-    
-    onUpdateContent(activeNode.id, newText);
-    
-    setTimeout(() => {
-      textarea.focus();
-      const newCursorPos = start + prefix.length + selected.length + suffix.length;
-      const targetPos = (start === end) ? start + prefix.length : newCursorPos;
-      textarea.setSelectionRange(targetPos, targetPos);
-      setCursorOffset(targetPos);
-    }, 0);
+  const applyMarkdown = (prefix: string, suffix = '') => {
+    const ta = document.querySelector('.custom-editor-wrapper textarea') as HTMLTextAreaElement;
+    if (!ta || !activeNode) return;
+    const s = ta.selectionStart, e = ta.selectionEnd, text = activeNode.content || '';
+    const sel = text.substring(s, e);
+    onUpdateContent(activeNode.id, text.substring(0, s) + prefix + sel + suffix + text.substring(e));
+    setTimeout(() => { ta.focus(); const p = s + prefix.length + sel.length + suffix.length; ta.setSelectionRange(s === e ? s + prefix.length : p, s === e ? s + prefix.length : p); setCursorOffset(s + prefix.length); }, 0);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if ((e.ctrlKey || e.metaKey)) {
-      switch(e.key.toLowerCase()) {
+    if (e.ctrlKey || e.metaKey) {
+      switch (e.key.toLowerCase()) {
         case 'b': e.preventDefault(); applyMarkdown('**', '**'); break;
         case 'i': e.preventDefault(); applyMarkdown('*', '*'); break;
         case 'k': e.preventDefault(); applyMarkdown('[', '](url)'); break;
@@ -258,138 +106,113 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
     }
   };
 
-  return (
-    <div className="flex-1 flex flex-col h-full bg-obsidian-bg overflow-hidden transition-colors duration-300 relative group">
-      {/* Top Toolbar */}
-      <div className="h-14 md:h-12 border-b border-obsidian-border flex items-center px-2 md:px-4 justify-between bg-obsidian-bg/90 backdrop-blur-md z-20 sticky top-0 shrink-0 gap-2">
-        <button 
-          onClick={onToggleSidebar} 
-          className="md:hidden p-2 -ml-2 text-obsidian-muted hover:text-obsidian-text"
-        >
-          <Menu size={20} />
-        </button>
+  const handlePaste = useCallback((e: React.ClipboardEvent) => {
+    const items = e.clipboardData?.items;
+    if (!items || !activeNode) return;
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.startsWith('image/')) {
+        e.preventDefault();
+        const file = items[i].getAsFile(); if (!file) return;
+        const reader = new FileReader();
+        reader.onload = ev => {
+          const b64 = ev.target?.result as string; if (!b64) return;
+          const ta = document.querySelector('.custom-editor-wrapper textarea') as HTMLTextAreaElement;
+          const p = ta?.selectionStart || (activeNode.content?.length || 0);
+          const t = activeNode.content || '';
+          onUpdateContent(activeNode.id, t.substring(0, p) + `![image](${b64})` + t.substring(p));
+        };
+        reader.readAsDataURL(file); break;
+      }
+    }
+  }, [activeNode, onUpdateContent]);
 
-        <div className="flex items-center gap-2 flex-1 min-w-0">
-          <input 
-            type="text" 
-            value={activeNode.name}
-            onChange={(e) => onRenameNode(activeNode.id, e.target.value)}
-            className="bg-transparent text-base md:text-lg font-semibold text-obsidian-text outline-none w-full truncate placeholder-obsidian-muted/50 font-sans"
-            placeholder="Untitled Note"
-            style={{ fontFamily: 'Pretendard, sans-serif' }}
-          />
-        </div>
-        
-        <div className="flex items-center gap-1">
-          <span className={`hidden md:inline-flex text-[10px] uppercase tracking-wider items-center mr-2 transition-opacity duration-500 ${isSaving ? 'opacity-100 text-obsidian-accent' : 'opacity-0'}`}>
-            <Save size={10} className="inline mr-1" />
-            Saved
-          </span>
-          <button 
-            onClick={onOpenVersionHistory}
-            className="p-2 hover:bg-obsidian-hover rounded-lg text-obsidian-muted hover:text-obsidian-text transition-colors hidden sm:block"
-            title="Version History"
-          >
-            <Clock size={18} />
-          </button>
-          <button 
-            onClick={handleDownload}
-            className="p-2 hover:bg-obsidian-hover rounded-lg text-obsidian-muted hover:text-obsidian-text transition-colors hidden sm:block"
-            title="Download MD"
-          >
-            <Download size={18} />
-          </button>
-          <button 
-            onClick={handleExportHTML}
-            className="p-2 hover:bg-obsidian-hover rounded-lg text-obsidian-muted hover:text-obsidian-text transition-colors hidden sm:block"
-            title="Export HTML"
-          >
-            <FileDown size={18} />
-          </button>
-          <button 
-            onClick={onExportZip}
-            className="p-2 hover:bg-obsidian-hover rounded-lg text-obsidian-muted hover:text-obsidian-text transition-colors hidden sm:block"
-            title="Export All as ZIP"
-          >
-            <FileArchive size={18} />
-          </button>
-          <button 
-            onClick={() => setIsPreview(!isPreview)}
-            className="p-2 hover:bg-obsidian-hover rounded-lg text-obsidian-muted hover:text-obsidian-text transition-colors"
-            title={isPreview ? "Edit Mode" : "Preview Mode"}
-          >
-            {isPreview ? <EyeOff size={18} /> : <Eye size={18} />}
-          </button>
+  if (!activeNode) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center h-full p-8 text-center" style={{ color: 'var(--text-muted)' }}>
+        <button onClick={onToggleSidebar} className="md:hidden absolute top-4 left-4 p-2" style={{ color: 'var(--text-main)' }}><Menu /></button>
+        <FileText size={40} className="mb-3 opacity-15" />
+        <p className="text-base font-medium" style={{ color: 'var(--text-main)' }}>노트를 선택하세요</p>
+        <p className="text-sm mt-1 opacity-50">사이드바에서 노트를 선택하거나 새로 만드세요.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex-1 flex flex-col h-full overflow-hidden relative" style={{ background: 'var(--bg-main)' }}>
+      {/* Toolbar */}
+      <div className="h-11 border-b flex items-center px-3 justify-between shrink-0 gap-2" style={{ borderColor: 'var(--border-color)', background: 'var(--vibrancy)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)' }}>
+        <button onClick={onToggleSidebar} className="md:hidden p-1.5 -ml-1 rounded-lg hover:bg-[var(--bg-hover)]" style={{ color: 'var(--text-muted)' }}><Menu size={18} /></button>
+        <input
+          type="text" value={activeNode.name}
+          onChange={e => onRenameNode(activeNode.id, e.target.value)}
+          className="bg-transparent text-sm font-semibold outline-none flex-1 min-w-0 truncate"
+          style={{ color: 'var(--text-main)', fontFamily: 'inherit' }}
+          placeholder="제목 없음"
+        />
+        <div className="flex items-center gap-0.5">
+          {[
+            { icon: <Clock size={15}/>, fn: onOpenVersionHistory, tip: '버전 기록', hide: 'sm' },
+            { icon: <Download size={15}/>, fn: () => { const b = new Blob([activeNode.content||''],{type:'text/markdown'}); const u = URL.createObjectURL(b); const a = document.createElement('a'); a.href=u; a.download=activeNode.name+'.md'; a.click(); URL.revokeObjectURL(u); }, tip: 'MD 다운로드', hide: 'sm' },
+            { icon: <FileDown size={15}/>, fn: () => exportAsHTML(activeNode), tip: 'HTML 내보내기', hide: 'sm' },
+            { icon: <FileArchive size={15}/>, fn: onExportZip, tip: 'ZIP 내보내기', hide: 'sm' },
+            { icon: isPreview ? <EyeOff size={15}/> : <Eye size={15}/>, fn: () => setIsPreview(!isPreview), tip: isPreview ? '편집' : '미리보기' },
+          ].map((b, i) => (
+            <button key={i} onClick={b.fn} title={b.tip} className={`p-1.5 rounded-lg hover:bg-[var(--bg-hover)] transition-colors ${b.hide ? `hidden ${b.hide}:block` : ''}`} style={{ color: 'var(--text-muted)' }}>{b.icon}</button>
+          ))}
         </div>
       </div>
 
-      {/* Editor/Preview Area */}
-      <div className="flex-1 overflow-hidden relative flex flex-col">
+      {/* Content */}
+      <div className="flex-1 overflow-hidden flex flex-col">
         {isPreview ? (
-          <div 
-            className="flex-1 overflow-y-auto p-4 md:p-8 prose prose-invert prose-slate max-w-none text-obsidian-text pb-20 md:pb-8" 
-            style={{ fontFamily: 'Pretendard, sans-serif', fontSize: `${fontSize}px` }}
-            onClick={(e) => {
-              // Handle wikilink clicks
-              const target = e.target as HTMLAnchorElement;
-              if (target.tagName === 'A' && target.getAttribute('href')?.startsWith('#wikilink:')) {
-                e.preventDefault();
-                const id = target.getAttribute('href')!.replace('#wikilink:', '');
-                if (id !== 'missing') onNavigateToNote(id);
-              }
-            }}
+          <div
+            className="flex-1 overflow-y-auto p-6 md:p-10 prose prose-slate dark:prose-invert max-w-none pb-20"
+            style={{ fontFamily: 'inherit', fontSize: fontSize + 'px', color: 'var(--text-main)' }}
+            onClick={e => { const t = e.target as HTMLAnchorElement; if (t.tagName === 'A' && t.getAttribute('href')?.startsWith('#wikilink:')) { e.preventDefault(); const id = t.getAttribute('href')!.replace('#wikilink:',''); if (id !== 'missing') onNavigateToNote(id); }}}
           >
-            <ReactMarkdown
-              components={{
-                p: ({children, ...props}: any) => <p {...props}>{processHighlights(children)}</p>,
-                li: ({children, ...props}: any) => <li {...props}>{processHighlights(children)}</li>,
-                td: ({children, ...props}: any) => <td {...props}>{processHighlights(children)}</td>,
-                h1: ({children, ...props}: any) => <h1 {...props}>{processHighlights(children)}</h1>,
-                h2: ({children, ...props}: any) => <h2 {...props}>{processHighlights(children)}</h2>,
-                h3: ({children, ...props}: any) => <h3 {...props}>{processHighlights(children)}</h3>,
-                h4: ({children, ...props}: any) => <h4 {...props}>{processHighlights(children)}</h4>,
-                blockquote: ({children, ...props}: any) => <blockquote {...props}>{processHighlights(children)}</blockquote>,
-              }}
-            >{renderWikilinks(activeNode.content || '')}</ReactMarkdown>
+            <ReactMarkdown components={{
+              p: ({children,...p}: any) => <p {...p}>{processHighlights(children)}</p>,
+              li: ({children,...p}: any) => <li {...p}>{processHighlights(children)}</li>,
+              h1: ({children,...p}: any) => <h1 {...p}>{processHighlights(children)}</h1>,
+              h2: ({children,...p}: any) => <h2 {...p}>{processHighlights(children)}</h2>,
+              h3: ({children,...p}: any) => <h3 {...p}>{processHighlights(children)}</h3>,
+              blockquote: ({children,...p}: any) => <blockquote {...p}>{processHighlights(children)}</blockquote>,
+            }}>{renderWikilinks(activeNode.content || '')}</ReactMarkdown>
           </div>
         ) : (
           <>
-            {/* Formatting Toolbar */}
-            <div className="h-10 border-b border-obsidian-border bg-obsidian-hover/30 flex items-center px-4 gap-1 overflow-x-auto scrollbar-hide shrink-0">
-               <FormatButton icon={<Bold size={14}/>} onClick={() => applyMarkdown('**', '**')} tooltip="Bold (Ctrl+B)" />
-               <FormatButton icon={<Italic size={14}/>} onClick={() => applyMarkdown('*', '*')} tooltip="Italic (Ctrl+I)" />
-               <FormatButton icon={<Strikethrough size={14}/>} onClick={() => applyMarkdown('~~', '~~')} tooltip="Strikethrough" />
-               <FormatButton icon={<span className="text-xs font-bold" style={{background:'rgba(250,204,21,0.3)',padding:'0 3px',borderRadius:2}}>H</span>} onClick={() => applyMarkdown('==', '==')} tooltip="Highlight" />
-               <div className="w-px h-4 bg-obsidian-border mx-1" />
-               <FormatButton icon={<Heading size={14}/>} onClick={() => applyMarkdown('### ')} tooltip="Heading" />
-               <FormatButton icon={<Quote size={14}/>} onClick={() => applyMarkdown('> ')} tooltip="Quote" />
-               <div className="w-px h-4 bg-obsidian-border mx-1" />
-               <FormatButton icon={<List size={14}/>} onClick={() => applyMarkdown('- ')} tooltip="Bullet List" />
-               <FormatButton icon={<CheckSquare size={14}/>} onClick={() => applyMarkdown('- [ ] ')} tooltip="Checkbox" />
-               <FormatButton icon={<LinkIcon size={14}/>} onClick={() => applyMarkdown('[', '](url)')} tooltip="Link" />
+            {/* Format bar */}
+            <div className="h-9 border-b flex items-center px-3 gap-0.5 overflow-x-auto scrollbar-hide shrink-0" style={{ borderColor: 'var(--border-color)', background: 'var(--bg-sidebar)' }}>
+              {[
+                { icon: <Bold size={13}/>, fn: () => applyMarkdown('**','**'), tip: 'Bold' },
+                { icon: <Italic size={13}/>, fn: () => applyMarkdown('*','*'), tip: 'Italic' },
+                { icon: <Strikethrough size={13}/>, fn: () => applyMarkdown('~~','~~'), tip: 'Strikethrough' },
+                { icon: <span className="text-[10px] font-bold px-0.5" style={{background:'rgba(255,214,10,0.25)',borderRadius:2}}>H</span>, fn: () => applyMarkdown('==','=='), tip: 'Highlight' },
+                'sep',
+                { icon: <Heading size={13}/>, fn: () => applyMarkdown('### '), tip: 'Heading' },
+                { icon: <Quote size={13}/>, fn: () => applyMarkdown('> '), tip: 'Quote' },
+                'sep',
+                { icon: <List size={13}/>, fn: () => applyMarkdown('- '), tip: 'List' },
+                { icon: <CheckSquare size={13}/>, fn: () => applyMarkdown('- [ ] '), tip: 'Checkbox' },
+                { icon: <LinkIcon size={13}/>, fn: () => applyMarkdown('[','](url)'), tip: 'Link' },
+              ].map((b, i) => b === 'sep' ?
+                <div key={i} className="w-px h-4 mx-1" style={{background:'var(--border-color)'}} /> :
+                <button key={i} onClick={(e) => { e.preventDefault(); (b as any).fn(); }} title={(b as any).tip} className="p-1.5 rounded-md hover:bg-[var(--bg-hover)] transition-colors" style={{color:'var(--text-muted)'}}>{(b as any).icon}</button>
+              )}
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4 md:p-8 custom-editor-wrapper pb-20 md:pb-8" onClick={() => {
-                document.querySelector('textarea')?.focus();
-            }}>
+            <div className="flex-1 overflow-y-auto p-4 md:p-8 custom-editor-wrapper pb-20" onClick={() => document.querySelector('textarea')?.focus()}>
               <div onKeyDown={handleKeyDown} onPaste={handlePaste} className="h-full">
                 <Editor
-                    value={activeNode.content || ''}
-                    onValueChange={code => onUpdateContent(activeNode.id, code)}
-                    highlight={highlightWithCursor}
-                    padding={10}
-                    className="text-base"
-                    style={{
-                      fontFamily: '"Pretendard", "Inter", sans-serif',
-                      fontSize: fontSize,
-                      lineHeight: 1.6,
-                    }}
-                    textareaClassName="focus:outline-none"
-                    // Important: Capture cursor position on every possible event
-                    onClick={(e) => setCursorOffset(e.currentTarget.selectionStart)}
-                    onKeyUp={(e) => setCursorOffset(e.currentTarget.selectionStart)}
-                    onBlur={() => {}} // Optional: Clear cursor offset to hide syntax when focus lost?
-                  />
+                  value={activeNode.content || ''}
+                  onValueChange={code => onUpdateContent(activeNode.id, code)}
+                  highlight={highlightWithCursor}
+                  padding={10}
+                  style={{ fontFamily: "'Pretendard', -apple-system, system-ui, sans-serif", fontSize, lineHeight: 1.75 }}
+                  textareaClassName="focus:outline-none"
+                  onClick={e => setCursorOffset(e.currentTarget.selectionStart)}
+                  onKeyUp={e => setCursorOffset(e.currentTarget.selectionStart)}
+                />
               </div>
             </div>
           </>
@@ -398,13 +221,3 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
     </div>
   );
 };
-
-const FormatButton = ({ icon, onClick, tooltip }: { icon: React.ReactNode, onClick: () => void, tooltip: string }) => (
-  <button 
-    onClick={(e) => { e.preventDefault(); onClick(); }}
-    className="p-1.5 text-obsidian-muted hover:text-obsidian-accent hover:bg-obsidian-hover rounded transition-colors"
-    title={tooltip}
-  >
-    {icon}
-  </button>
-)
