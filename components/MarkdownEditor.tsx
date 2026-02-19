@@ -32,6 +32,7 @@ interface MarkdownEditorProps {
   onResolveWikilink: (name: string) => void;
   onOpenVersionHistory: () => void;
   onExportZip: () => void;
+  isVirtualNote: boolean;
   isEncrypted: boolean;
   isUnlocked: boolean;
   onEncryptNote: (password: string) => Promise<void>;
@@ -42,6 +43,7 @@ interface MarkdownEditorProps {
 export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
   activeNode, onUpdateContent, onRenameNode, onToggleSidebar, fontSize,
   allNodes, onNavigateToNote, onResolveWikilink, onOpenVersionHistory, onExportZip,
+  isVirtualNote,
   isEncrypted, isUnlocked, onEncryptNote, onUnlockNote, onLockNote,
 }) => {
   const [isPreview, setIsPreview] = useState(false);
@@ -206,9 +208,11 @@ export const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
             { icon: <FileDown size={15}/>, fn: () => exportAsHTML(activeNode), tip: 'HTML 내보내기', hide: 'sm' },
             { icon: <FileArchive size={15}/>, fn: onExportZip, tip: 'ZIP 내보내기', hide: 'sm' },
             { icon: isPreview ? <EyeOff size={15}/> : <Eye size={15}/>, fn: () => setIsPreview(!isPreview), tip: isPreview ? '편집' : '미리보기' },
-            isEncrypted
-              ? { icon: <Lock size={15}/>, fn: onLockNote, tip: '다시 잠금' }
-              : { icon: <Unlock size={15}/>, fn: requestEncrypt, tip: '노트 암호화' },
+            ...(!isVirtualNote ? [
+              isEncrypted
+                ? { icon: <Lock size={15}/>, fn: onLockNote, tip: '다시 잠금' }
+                : { icon: <Unlock size={15}/>, fn: requestEncrypt, tip: '노트 암호화' },
+            ] : []),
           ].map((b, i) => (
             <button key={i} onClick={b.fn} title={b.tip} className={`p-1.5 rounded-lg hover:bg-[var(--bg-hover)] transition-colors ${b.hide ? `hidden ${b.hide}:block` : ''}`} style={{ color: 'var(--text-muted)' }}>{b.icon}</button>
           ))}

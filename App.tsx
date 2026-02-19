@@ -15,6 +15,7 @@ import { decryptNoteContent, encryptNoteContent, isEncryptedContent } from './se
 import { Plus, Mountain, FolderInput, Settings, X, Search, RefreshCw, Download as DownloadIcon } from 'lucide-react';
 
 const generateId = () => crypto.randomUUID();
+const DRAFT_NOTE_ID = '__draft_note__';
 
 const initialNodes: FileSystemNode[] = [
   { id: '1', parentId: null, name: 'Welcome', type: NodeType.FOLDER, isOpen: true, createdAt: Date.now() },
@@ -27,7 +28,7 @@ const validThemes = new Set(['light', 'dark', 'system', 'dracula', 'one-dark', '
 
 const App: React.FC = () => {
   const [nodes, setNodes] = useState<FileSystemNode[]>(() => { const s = localStorage.getItem('montana-nodes'); return s ? JSON.parse(s) : initialNodes; });
-  const [activeNodeId, setActiveNodeId] = useState<string | null>(() => localStorage.getItem('montana-active') || '2');
+  const [activeNodeId, setActiveNodeId] = useState<string | null>(null);
   const [settings, setSettings] = useState<AppSettings>(() => {
     const s = localStorage.getItem('montana-settings');
     if (!s) return defaultSettings;
@@ -39,7 +40,10 @@ const App: React.FC = () => {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isSearchOpen, setSearchOpen] = useState(false);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
-  const [openTabs, setOpenTabs] = useState<string[]>(() => { const s = localStorage.getItem('montana-tabs'); return s ? JSON.parse(s) : ['2']; });
+  const [openTabs, setOpenTabs] = useState<string[]>([]);
+  const [isDraftMode, setIsDraftMode] = useState(true);
+  const [draftName, setDraftName] = useState('');
+  const [draftContent, setDraftContent] = useState('');
   const [isVersionHistoryOpen, setVersionHistoryOpen] = useState(false);
   const [syncUser, setSyncUser] = useState<SyncUser | null>(null);
   const [localSyncFolder, setLocalSyncFolder] = useState<string | null>(localSync.syncedFolderName());
@@ -148,21 +152,23 @@ const App: React.FC = () => {
 
       const firstFile = cloudNodes.find(n => n.type === NodeType.FILE);
       if (firstFile) {
+        setIsDraftMode(false);
         setActiveNodeId(firstFile.id);
         setOpenTabs([firstFile.id]);
       } else {
+        setIsDraftMode(true);
         setActiveNodeId(null);
         setOpenTabs([]);
       }
 
       cloudHydratedRef.current = true;
-      addToast('success', `클라우드 노트 ${cloudNodes.length}개를 불러왔습니다.`);
+      setToasts(prev => [...prev, { id: crypto.randomUUID(), type: 'success', text: `클라우드 노트 ${cloudNodes.length}개를 불러왔습니다.` }]);
     }).catch(() => {
       cloudHydrationKeyRef.current = null;
       cloudHydratedRef.current = false;
-      addToast('error', '클라우드 노트 자동 불러오기에 실패했습니다.');
+      setToasts(prev => [...prev, { id: crypto.randomUUID(), type: 'error', text: '클라우드 노트 자동 불러오기에 실패했습니다.' }]);
     });
-  }, [settings.storageMode, settings.supabaseUrl, settings.supabaseAnonKey, syncUser, withCloudMutationGuard, addToast]);
+  }, [settings.storageMode, settings.supabaseUrl, settings.supabaseAnonKey, syncUser, withCloudMutationGuard]);
 
   // Keyboard shortcut
   useEffect(() => {
@@ -172,13 +178,23 @@ const App: React.FC = () => {
 
   const activeNode = useMemo(() => nodes.find(n => n.id === activeNodeId), [nodes, activeNodeId]);
   const activeNodeForEditor = useMemo(() => {
+    if (isDraftMode) {
+      return {
+        id: DRAFT_NOTE_ID,
+        parentId: null,
+        name: draftName,
+        type: NodeType.FILE,
+        content: draftContent,
+        createdAt: Date.now(),
+      } as FileSystemNode;
+    }
     if (!activeNode) return undefined;
     if (!isEncryptedContent(activeNode.content)) return activeNode;
     const decrypted = decryptedNotesRef.current.get(activeNode.id);
     return { ...activeNode, content: decrypted ?? '' };
-  }, [activeNode, encryptionUiVersion]);
-  const activeNodeIsEncrypted = !!activeNode && isEncryptedContent(activeNode.content);
-  const activeNodeIsUnlocked = !!activeNode && decryptedNotesRef.current.has(activeNode.id);
+  }, [activeNode, encryptionUiVersion, isDraftMode, draftName, draftContent]);
+  const activeNodeIsEncrypted = !isDraftMode && !!activeNode && isEncryptedContent(activeNode.content);
+  const activeNodeIsUnlocked = !isDraftMode && !!activeNode && decryptedNotesRef.current.has(activeNode.id);
   const compareNodes = useCallback((a: FileSystemNode, b: FileSystemNode, order: SortOrder) => {
     const byName = a.name.localeCompare(b.name, 'ko', { sensitivity: 'base' });
     if (order === 'name-asc') return byName;
@@ -201,11 +217,13 @@ const App: React.FC = () => {
 
   const handleToggleFolder = useCallback((id: string) => setNodes(prev => prev.map(n => n.id === id ? { ...n, isOpen: !n.isOpen } : n)), []);
   const handleSelectNode = useCallback((id: string) => {
+    setIsDraftMode(false);
     setActiveNodeId(id);
     setNodes(prev => { const n = prev.find(x => x.id === id); if (n && n.type === NodeType.FILE) setOpenTabs(tabs => tabs.includes(id) ? tabs : [...tabs, id]); return prev; });
     if (window.innerWidth < 768) setSidebarOpen(false);
   }, []);
   const handleCreateNode = useCallback((parentId: string | null, type: NodeType) => {
+    setIsDraftMode(false);
     const n: FileSystemNode = { id: generateId(), parentId, name: type === NodeType.FOLDER ? '새 폴더' : '새 노트', type, content: type === NodeType.FILE ? '' : undefined, isOpen: true, createdAt: Date.now() };
     setNodes(prev => [...prev, n]);
     if (type === NodeType.FILE) { setActiveNodeId(n.id); setOpenTabs(tabs => [...tabs, n.id]); }
@@ -221,6 +239,7 @@ const App: React.FC = () => {
     ));
 
     if (existing) {
+      setIsDraftMode(false);
       handleSelectNode(existing.id);
       return;
     }
@@ -235,6 +254,7 @@ const App: React.FC = () => {
     };
 
     setNodes(prev => [...prev, newNode]);
+    setIsDraftMode(false);
     setActiveNodeId(newNode.id);
     setOpenTabs(tabs => tabs.includes(newNode.id) ? tabs : [...tabs, newNode.id]);
     addToast('info', '위키링크 노트를 새로 만들었습니다.');
@@ -250,8 +270,41 @@ const App: React.FC = () => {
       return prev.map(n => n.id === nodeId ? { ...n, parentId: newParentId } : n);
     });
   }, []);
-  const handleRenameNode = useCallback((id: string, name: string) => setNodes(prev => prev.map(n => n.id === id ? { ...n, name } : n)), []);
+  const handleRenameNode = useCallback((id: string, name: string) => {
+    if (id === DRAFT_NOTE_ID) {
+      setDraftName(name);
+      return;
+    }
+    setNodes(prev => prev.map(n => n.id === id ? { ...n, name } : n));
+  }, []);
   const handleUpdateContent = useCallback((id: string, content: string) => {
+    if (id === DRAFT_NOTE_ID) {
+      setDraftContent(content);
+      if (!content.trim()) return;
+
+      const guessedTitle = draftName.trim()
+        || content.split('\n').map(line => line.replace(/^#+\s*/, '').trim()).find(Boolean)
+        || '새 노트';
+
+      const newNode: FileSystemNode = {
+        id: generateId(),
+        parentId: null,
+        name: guessedTitle,
+        type: NodeType.FILE,
+        content,
+        createdAt: Date.now(),
+      };
+
+      setNodes(prev => [...prev, newNode]);
+      setIsDraftMode(false);
+      setDraftName('');
+      setDraftContent('');
+      setActiveNodeId(newNode.id);
+      setOpenTabs(tabs => tabs.includes(newNode.id) ? tabs : [...tabs, newNode.id]);
+      addToast('success', '새 노트를 만들었습니다.');
+      return;
+    }
+
     const target = nodes.find(n => n.id === id);
     if (!target || target.type !== NodeType.FILE) return;
 
@@ -277,7 +330,7 @@ const App: React.FC = () => {
     }).catch(() => {
       addToast('error', '노트 암호화 저장 중 오류가 발생했습니다.');
     });
-  }, [nodes, addToast]);
+  }, [nodes, addToast, draftName]);
 
   const handleEncryptNote = useCallback(async (noteId: string, password: string) => {
     const target = nodes.find(n => n.id === noteId);
@@ -484,7 +537,7 @@ const App: React.FC = () => {
 
       {/* Main */}
       <div className="flex-1 flex flex-col min-w-0 h-full relative transition-colors duration-200" style={{ background: 'var(--bg-main)' }}>
-        <TabBar openTabs={openTabs} activeTabId={activeNodeId} nodes={nodes} onSelectTab={handleSelectNode} onCloseTab={handleCloseTab} />
+        <TabBar openTabs={isDraftMode ? [] : openTabs} activeTabId={activeNodeId} nodes={nodes} onSelectTab={handleSelectNode} onCloseTab={handleCloseTab} />
         <MarkdownEditor
           activeNode={activeNodeForEditor}
           onUpdateContent={handleUpdateContent}
@@ -496,6 +549,7 @@ const App: React.FC = () => {
           onResolveWikilink={handleResolveWikilink}
           onOpenVersionHistory={() => setVersionHistoryOpen(true)}
           onExportZip={handleExportZip}
+          isVirtualNote={isDraftMode}
           isEncrypted={activeNodeIsEncrypted}
           isUnlocked={activeNodeIsUnlocked}
           onEncryptNote={async (password) => {
