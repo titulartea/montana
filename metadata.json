@@ -1,0 +1,5 @@
+{
+  "name": "Montana",
+  "description": "A production-ready Markdown note-taking app with live-preview styling, shortcuts, rich themes, and local file sync.",
+  "requestFramePermissions": []
+}
